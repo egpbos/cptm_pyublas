@@ -90,11 +90,15 @@ class GibbsSampler():
         return np.searchsorted(np.cumsum(p), np.random.rand())
 
     def theta(self):
+        """Calculate theta based on the current word/topic assignments.
+        """
         f1 = self.ndk+self.alpha
         f2 = np.sum(self.ndk, axis=1, keepdims=True)+self.nTopics*self.alpha
         return f1/f2
 
     def phi(self):
+        """Calculate phi based on the current word/topic assignments.
+        """
         f1 = self.nkw+self.beta
         f2 = np.sum(self.nkw, axis=1, keepdims=True)+self.V*self.beta
         return f1/f2
@@ -137,7 +141,9 @@ class GibbsSampler():
             self.print_topic(t)
 
     def print_topic(self, weights):
-        words = [self.corpus.dictionary.get(i) for i in range(len(self.corpus.dictionary))]
+        """Prints the top 10 words in the topics found."""
+        words = [self.corpus.dictionary.get(i)
+                 for i in range(len(self.corpus.dictionary))]
         l = zip(words, weights)
         l.sort(key=lambda tup: tup[1])
         print l[:len(l)-11:-1]
