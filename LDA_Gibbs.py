@@ -89,6 +89,16 @@ class GibbsSampler():
         """
         return np.searchsorted(np.cumsum(p), np.random.rand())
 
+    def theta(self):
+        f1 = self.ndk+self.alpha
+        f2 = np.sum(self.ndk, axis=1, keepdims=True)+self.nTopics*self.alpha
+        return f1/f2
+
+    def phi(self):
+        f1 = self.nkw+self.beta
+        f2 = np.sum(self.nkw, axis=1, keepdims=True)+self.V*self.beta
+        return f1/f2
+
     def run(self):
         theta = np.zeros((self.nIter, self.D, self.nTopics))
         phi = np.zeros((self.nIter, self.nTopics, self.V))
@@ -118,8 +128,8 @@ class GibbsSampler():
                 #if topic_old != topic:
                 #    logger.debug('Changed topic from {} to {}'.format(topic_old, topic))
             # calculate theta and phi
-            theta[t] = (self.ndk+self.alpha)/(np.sum(self.ndk, axis=1, keepdims=True)+self.nTopics*self.alpha)
-            phi[t] = (self.nkw+self.beta)/(np.sum(self.nkw, axis=1, keepdims=True)+self.V*self.beta)
+            theta[t] = self.theta()
+            phi[t] = self.phi()
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
