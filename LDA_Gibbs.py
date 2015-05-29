@@ -12,7 +12,7 @@ Gibbs Sampling
 
 from __future__ import division
 import numpy as np
-import DilipadCorpus
+import CPTCorpus
 import glob
 import logging
 import time
@@ -63,7 +63,7 @@ class GibbsSampler():
                     yield d, w_id, i
                     i += 1
 
-    def p_z(self, d, word_index):
+    def p_z(self, d, w_id):
         """Calculate (normalized) probabilities for p(w|z).
 
         The probabilities are normalized, because that makes it easier to
@@ -71,7 +71,7 @@ class GibbsSampler():
         """
         f1 = (self.ndk[d]+self.alpha) / \
              (np.sum(self.ndk[d])+self.nTopics*self.alpha)
-        f2 = (self.nkw[:, word_index]+self.beta) / \
+        f2 = (self.nkw[:, w_id]+self.beta) / \
              (self.nk+self.beta*len(self.corpus.dictionary))
 
         p = f1*f2
@@ -97,13 +97,14 @@ class GibbsSampler():
             t1 = time.clock()
             logger.debug('Iteration {} of {}'.format(t+1, self.nIter))
             for d, w_id, i in self._words_in_corpus():
+                #print self.corpus.dictionary[w_id]
                 topic = self.z[d, i]
                 topic_old = topic
 
                 self.ndk[d, topic] -= 1
                 self.nkw[topic, w_id] -= 1
                 self.nk[topic] -= 1
-                p = self.p_z(d, i)
+                p = self.p_z(d, w_id)
                 #print p
                 #print type(p[0])
 
@@ -135,9 +136,9 @@ class GibbsSampler():
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
-    files = glob.glob('/home/jvdzwaan/data/dilipad/txt-sample/*.txt')
+    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*.txt')
 
-    corpus = DilipadCorpus.DilipadCorpus(files)
-    sampler = GibbsSampler(corpus)
+    corpus = CPTCorpus.CPTCorpus(files)
+    sampler = GibbsSampler(corpus, nTopics=3, nIter=100)
     sampler._initialize()
     sampler.run()
