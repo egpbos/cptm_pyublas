@@ -31,6 +31,8 @@ class GibbsSampler():
         self.nIter = nIter
         self.maxDocLength = max([sum([f for w, f in doc]) for doc in corpus])
 
+        self._initialize()
+
     def _initialize(self):
         """Initializes the Gibbs sampler."""
         self.V = len(self.corpus.dictionary)
@@ -111,16 +113,12 @@ class GibbsSampler():
             t1 = time.clock()
             logger.debug('Iteration {} of {}'.format(t+1, self.nIter))
             for d, w_id, i in self._words_in_corpus():
-                #print self.corpus.dictionary[w_id]
                 topic = self.z[d, i]
-                topic_old = topic
 
                 self.ndk[d, topic] -= 1
                 self.nkw[topic, w_id] -= 1
                 self.nk[topic] -= 1
                 p = self.p_z(d, w_id)
-                #print p
-                #print type(p[0])
 
                 topic = self.sample_from(p)
 
@@ -129,8 +127,6 @@ class GibbsSampler():
                 self.nkw[topic, w_id] += 1
                 self.nk[topic] += 1
 
-                #if topic_old != topic:
-                #    logger.debug('Changed topic from {} to {}'.format(topic_old, topic))
             # calculate theta and phi
             theta[t] = self.theta()
             phi[t] = self.phi()
@@ -156,5 +152,4 @@ if __name__ == '__main__':
 
     corpus = CPTCorpus.CPTCorpus(files)
     sampler = GibbsSampler(corpus, nTopics=3, nIter=100)
-    sampler._initialize()
     sampler.run()
