@@ -29,57 +29,64 @@ class GibbsSampler():
         self.nTopics = nTopics
         self.alpha = alpha
         self.beta = beta
+        self.numPerspectives = len(self.corpus.perspectives)
         self.beta_o = beta_o
         self.nIter = nIter
-        self.maxDocLengthT = max([sum([f for w, f in doc]) for doc in corpus.topicCorpus])
-        self.maxDocLengthO = max([sum([f for w, f in doc]) for doc in corpus.opinionCorpus])
+        self.maxDocLengthT = 100  # TODO: replace for actual value
+        self.maxDocLengthO = 100  # TODO: replace for actual value
 
         #self._initialize()
 
     def _initialize(self):
         """Initializes the Gibbs sampler."""
-        self.VT = len(self.corpus.topicCorpus.dictionary)
-        self.VO = len(self.corpus.opinionCorpus.dictionary)
-        self.D = len(self.corpus)
+        self.VT = len(self.corpus.topicDictionary)
+        self.VO = len(self.corpus.opinionDictionary)
+        self.DT = len(self.corpus)
+        self.DO = [len(p.opinionCorpus) for p in self.corpus.perspectives]
 
         # topics
-        self.z = np.zeros((self.D, self.maxDocLengthT), dtype=np.int)
-        self.ndk = np.zeros((self.D, self.nTopics), dtype=np.int)
+        self.z = np.zeros((self.DT, self.maxDocLengthT), dtype=np.int)
+        self.ndk = np.zeros((self.DT, self.nTopics), dtype=np.int)
         self.nkw = np.zeros((self.nTopics, self.VT), dtype=np.int)
         self.nk = np.zeros(self.nTopics, dtype=np.int)
-        self.ntd = np.zeros(self.D, dtype=np.float)
-
-        for d, w_id, i in self._words_in_corpus(self.corpus.topicCorpus):
-            topic = np.random.randint(0, self.nTopics)
-            self.z[d, i] = topic
-            self.ndk[d, topic] += 1
-            self.nkw[topic, w_id] += 1
-            self.nk[topic] += 1
-            self.ntd[d] += 1
+        self.ntd = np.zeros(self.DT, dtype=np.float)
 
         # opinions
-        self.x = np.zeros((self.D, self.maxDocLengthO), dtype=np.int)
-        #self.nsd = np.zeros((self.D, self.nTopics), dtype=np.int)
-        self.nrs = np.zeros((self.nTopics, self.VO), dtype=np.int)
-        self.ns = np.zeros(self.nTopics, dtype=np.int)
+        self.x = [np.zeros((self.DO[i], self.maxDocLengthO), dtype=np.int)
+                  for i, p in enumerate(self.corpus.perspectives)]
+        self.nrs = [np.zeros((self.nTopics, self.VO), dtype=np.int)
+                    for p in self.corpus.perspectives]
+        self.ns = [np.zeros(self.nTopics, dtype=np.int)
+                   for p in self.corpus.perspectives]
 
-        for d, w_id, i in self._words_in_corpus(self.corpus.opinionCorpus):
-            opinion = np.random.randint(0, self.nTopics)
-            self.x[d, i] = opinion
-            #self.nsd[d, opinion] += 1
-            self.nrs[opinion, w_id] += 1
-            self.ns[opinion] += 1
+        # loop over the words in the corpus
+        #print len(self.corpus.perspectives)
+        for d, p, d_p, doc in self.corpus:
+            #print d, p, d_p, doc
+            for w_id, i in self._words_in_document(doc, 'topic'):
+                #print w_id, i
+                topic = np.random.randint(0, self.nTopics)
+                self.z[d, i] = topic
+                self.ndk[d, topic] += 1
+                self.nkw[topic, w_id] += 1
+                self.nk[topic] += 1
+                self.ntd[d] += 1
 
+            for w_id, i in self._words_in_document(doc, 'opinion'):
+                #print w_id, i
+                opinion = np.random.randint(0, self.nTopics)
+                self.x[p][d_p, i] = opinion
+                self.nrs[p][opinion, w_id] += 1
+                self.ns[p][opinion] += 1
         logger.debug('Finished initialization.')
 
-    def _words_in_corpus(self, corpus):
+    def _words_in_document(self, doc, topic_or_opinion):
         """Iterates over the words in  the corpus."""
-        for d, doc in enumerate(corpus):
-            i = 0
-            for w_id, freq in doc:
-                for j in range(freq):
-                    yield d, w_id, i
-                    i += 1
+        i = 0
+        for w_id, freq in doc[topic_or_opinion]:
+            for j in range(freq):
+                yield w_id, i
+                i += 1
 
     def p_z(self, d, w_id):
         """Calculate (normalized) probabilities for p(w|z) (topics).
@@ -95,13 +102,13 @@ class GibbsSampler():
         p = f1*f2
         return p / np.sum(p)
 
-    def p_x(self, d, w_id):
+    def p_x(self, p, d, w_id):
         """Calculate (normalized) probabilities for p(w|x) (opinions).
 
         The probabilities are normalized, because that makes it easier to
         sample from them.
         """
-        f1 = (self.nrs[:, w_id]+self.beta_o)/(self.ns+self.beta_o*self.VO)
+        f1 = (self.nrs[p][:, w_id]+self.beta_o)/(self.ns[p]+self.beta_o*self.VO)
         # The paper says f2 = nsd (the number of times topic s occurs in
         # document d) / Ntd (the number of topic words in document d).
         # 's' is used to refer to opinions. However, f2 makes more sense as the
@@ -140,69 +147,77 @@ class GibbsSampler():
         f2 = np.sum(self.nkw, axis=1, keepdims=True)+self.VT*self.beta
         return f1/f2
 
-    def phi_opinion(self):
+    def phi_opinion(self, p):
         """Calculate phi based on the current word/topic assignments.
         """
-        f1 = self.nrs+float(self.beta_o)
-        f2 = np.sum(self.nrs, axis=1, keepdims=True)+self.VO*self.beta_o
+        f1 = self.nrs[p]+float(self.beta_o)
+        f2 = np.sum(self.nrs[p], axis=1, keepdims=True)+self.VO*self.beta_o
         return f1/f2
 
     def run(self):
-        theta_topic = np.zeros((self.nIter, self.D, self.nTopics))
+        theta_topic = np.zeros((self.nIter, self.DT, self.nTopics))
         phi_topic = np.zeros((self.nIter, self.nTopics, self.VT))
 
-        phi_opinion = np.zeros((self.nIter, self.nTopics, self.VO))
+        phi_opinion = [np.zeros((self.nIter, self.nTopics, self.VO))
+                       for p in self.corpus.perspectives]
 
         for t in range(self.nIter):
             t1 = time.clock()
             logger.debug('Iteration {} of {}'.format(t+1, self.nIter))
 
-            # topics
-            for d, w_id, i in self._words_in_corpus(self.corpus.topicCorpus):
-                topic = self.z[d, i]
+            for d, persp, d_p, doc in self.corpus:
+                #print d, p, d_p, doc
+                for w_id, i in self._words_in_document(doc, 'topic'):
+                    #print w_id, i
+                    topic = self.z[d, i]
 
-                self.ndk[d, topic] -= 1
-                self.nkw[topic, w_id] -= 1
-                self.nk[topic] -= 1
+                    self.ndk[d, topic] -= 1
+                    self.nkw[topic, w_id] -= 1
+                    self.nk[topic] -= 1
 
-                p = self.p_z(d, w_id)
-                topic = self.sample_from(p)
+                    p = self.p_z(d, w_id)
+                    topic = self.sample_from(p)
 
-                self.z[d, i] = topic
-                self.ndk[d, topic] += 1
-                self.nkw[topic, w_id] += 1
-                self.nk[topic] += 1
+                    self.z[d, i] = topic
+                    self.ndk[d, topic] += 1
+                    self.nkw[topic, w_id] += 1
+                    self.nk[topic] += 1
 
-            # opinions
-            for d, w_id, i in self._words_in_corpus(self.corpus.opinionCorpus):
-                opinion = self.x[d, i]
+                for w_id, i in self._words_in_document(doc, 'opinion'):
+                    #print w_id, i
+                    #print p, d_p, i
+                    opinion = self.x[persp][d_p, i]
 
-                self.nrs[opinion, w_id] -= 1
-                self.ns[opinion] -= 1
+                    self.nrs[persp][opinion, w_id] -= 1
+                    self.ns[persp][opinion] -= 1
 
-                p = self.p_x(d, w_id)
-                opinion = self.sample_from(p)
+                    p = self.p_x(persp, d, w_id)
+                    opinion = self.sample_from(p)
 
-                self.x[d, i] = opinion
-                self.nrs[opinion, w_id] += 1
-                self.ns[opinion] += 1
+                    self.x[persp][d_p, i] = opinion
+                    self.nrs[persp][opinion, w_id] += 1
+                    self.ns[persp][opinion] += 1
 
             # calculate theta and phi
             theta_topic[t] = self.theta_topic()
             phi_topic[t] = self.phi_topic()
 
-            phi_opinion[t] = self.phi_opinion()
+            for p in range(self.numPerspectives):
+                phi_opinion[p][t] = self.phi_opinion(p)
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
         for t in np.mean(phi_topic, axis=0):
             self.print_topic(t)
-        for t in np.mean(phi_opinion, axis=0):
-            self.print_opinion(t)
+        print
+        for p in range(self.numPerspectives):
+            for t in np.mean(phi_opinion[p], axis=0):
+                self.print_opinion(t)
+            print
 
     def print_topic(self, weights):
         """Prints the top 10 words in the topics found."""
-        words = [self.corpus.topicCorpus.dictionary.get(i)
+        words = [self.corpus.topicDictionary.get(i)
                  for i in range(self.VT)]
         l = zip(words, weights)
         l.sort(key=lambda tup: tup[1])
@@ -210,7 +225,7 @@ class GibbsSampler():
 
     def print_opinion(self, weights):
         """Prints the top 10 words in the topics found."""
-        words = [self.corpus.opinionCorpus.dictionary.get(i)
+        words = [self.corpus.opinionDictionary.get(i)
                  for i in range(self.VO)]
         l = zip(words, weights)
         l.sort(key=lambda tup: tup[1])
@@ -220,7 +235,7 @@ class GibbsSampler():
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
-    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*.txt')
+    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
 
     corpus = CPTCorpus.CPTCorpus(files)
     sampler = GibbsSampler(corpus, nTopics=3, nIter=100)
