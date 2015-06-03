@@ -62,9 +62,17 @@ real_theta_topic = np.array([[1.0, 0.0, 0.0],
                              [0.0, 0.0, 1.0],
                              [0.7, 0.3, 0.0],
                              [0.0, 0.5, 0.5]])
-real_phi_topic = np.array([[0.4, 0.2, 0.4, 0.0, 0.0, 0.0, 0.0],
-                           [0.0, 0.3, 0.0, 0.35, 0.35, 0.0, 0.0],
-                           [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5]])
+real_theta_topic = np.array([[1.0, 0.0, 0.0],
+                             [0.0, 1.0, 0.0],
+                             [0.0, 0.0, 1.0],
+                             [0.7, 0.3, 0.0],
+                             [0.0, 0.5, 0.5]])
+real_phi_topic1 = np.array([[0.4, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0],
+                            [0.0, 0.3, 0.0, 0.35, 0.35, 0.0, 0.0],
+                            [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5]])
+real_phi_topic2 = np.array([[0.4, 0.0, 0.6, 0.0, 0.0, 0.0, 0.0],
+                            [0.0, 0.3, 0.0, 0.35, 0.35, 0.0, 0.0],
+                            [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5]])
 real_phi_opinion1 = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                               [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
                               [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]])
@@ -73,8 +81,9 @@ real_phi_opinion2 = np.array([[0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0],
                               [0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]])
 
 num_topics = real_theta_topic.shape[1]
-phi_perspectives = [real_phi_opinion1, real_phi_opinion2]
-num_perspectives = len(phi_perspectives)
+phi_opinion_perspectives = [real_phi_opinion1, real_phi_opinion2]
+phi_topic_perspectives = [real_phi_topic1, real_phi_topic2]
+num_perspectives = len(phi_opinion_perspectives)
 length_topic = 50
 length_opinion = 20
 
@@ -95,12 +104,12 @@ for p in range(num_perspectives):
                 # topic words
                 topic = np.random.multinomial(1, tm).argmax()
                 topic_counter[topic] += 1
-                word = np.random.multinomial(1, real_phi_topic[topic]).argmax()
+                word = np.random.multinomial(1, phi_topic_perspectives[p][topic]).argmax()
                 topic_words.append(topic_vocabulary[word])
             #print topic_counter
             f.write('{}\n'.format(' '.join(topic_words)))
 
             opinion_words = generate_opinion_words(topic_counter, num_topics,
-                                                   phi_perspectives[p],
+                                                   phi_opinion_perspectives[p],
                                                    opinion_vocabulary)
             f.write(' '.join(opinion_words))
