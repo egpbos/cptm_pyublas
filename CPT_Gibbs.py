@@ -59,14 +59,14 @@ class GibbsSampler():
 
         # opinions
         self.x = np.zeros((self.D, self.maxDocLengthO), dtype=np.int)
-        self.nsd = np.zeros((self.D, self.nTopics), dtype=np.int)
+        #self.nsd = np.zeros((self.D, self.nTopics), dtype=np.int)
         self.nrs = np.zeros((self.nTopics, self.VO), dtype=np.int)
         self.ns = np.zeros(self.nTopics, dtype=np.int)
 
         for d, w_id, i in self._words_in_corpus(self.corpus.opinionCorpus):
             opinion = np.random.randint(0, self.nTopics)
             self.x[d, i] = opinion
-            self.nsd[d, opinion] += 1
+            #self.nsd[d, opinion] += 1
             self.nrs[opinion, w_id] += 1
             self.ns[opinion] += 1
 
@@ -82,7 +82,7 @@ class GibbsSampler():
                     i += 1
 
     def p_z(self, d, w_id):
-        """Calculate (normalized) probabilities for p(w|z).
+        """Calculate (normalized) probabilities for p(w|z) (topics).
 
         The probabilities are normalized, because that makes it easier to
         sample from them.
@@ -96,8 +96,20 @@ class GibbsSampler():
         return p / np.sum(p)
 
     def p_x(self, d, w_id):
+        """Calculate (normalized) probabilities for p(w|x) (opinions).
+
+        The probabilities are normalized, because that makes it easier to
+        sample from them.
+        """
         f1 = (self.nrs[:, w_id]+self.beta_o)/(self.ns+self.beta_o*self.VO)
-        f2 = self.nsd[d]/self.ntd[d]
+        # The paper says f2 = nsd (the number of times topic s occurs in
+        # document d) / Ntd (the number of topic words in document d).
+        # 's' is used to refer to opinions. However, f2 makes more sense as the
+        # fraction of topic words assigned to a topic.
+        # Also in test runs of the Gibbs sampler, the topics and opinions might
+        # have different indexes when the number of opinion words per document
+        # is used instead of the number of topic words.
+        f2 = self.ndk[d]/self.ntd[d]
 
         p = f1*f2
         return p / np.sum(p)
@@ -114,24 +126,32 @@ class GibbsSampler():
         """
         return np.searchsorted(np.cumsum(p), np.random.rand())
 
-    def theta(self):
+    def theta_topic(self):
         """Calculate theta based on the current word/topic assignments.
         """
         f1 = self.ndk+self.alpha
         f2 = np.sum(self.ndk, axis=1, keepdims=True)+self.nTopics*self.alpha
         return f1/f2
 
-    def phi(self):
+    def phi_topic(self):
         """Calculate phi based on the current word/topic assignments.
         """
         f1 = self.nkw+self.beta
         f2 = np.sum(self.nkw, axis=1, keepdims=True)+self.VT*self.beta
         return f1/f2
 
+    def phi_opinion(self):
+        """Calculate phi based on the current word/topic assignments.
+        """
+        f1 = self.nrs+float(self.beta_o)
+        f2 = np.sum(self.nrs, axis=1, keepdims=True)+self.VO*self.beta_o
+        return f1/f2
+
     def run(self):
-        theta = np.zeros((self.nIter, self.D, self.nTopics))
-        phi = np.zeros((self.nIter, self.nTopics, self.VT))
-        # TODO: initialize opinion phi
+        theta_topic = np.zeros((self.nIter, self.D, self.nTopics))
+        phi_topic = np.zeros((self.nIter, self.nTopics, self.VT))
+
+        phi_opinion = np.zeros((self.nIter, self.nTopics, self.VO))
 
         for t in range(self.nIter):
             t1 = time.clock()
@@ -157,7 +177,6 @@ class GibbsSampler():
             for d, w_id, i in self._words_in_corpus(self.corpus.opinionCorpus):
                 opinion = self.x[d, i]
 
-                self.nsd[d, opinion] -= 1 # TODO: this line is missing from the notebook
                 self.nrs[opinion, w_id] -= 1
                 self.ns[opinion] -= 1
 
@@ -165,24 +184,34 @@ class GibbsSampler():
                 opinion = self.sample_from(p)
 
                 self.x[d, i] = opinion
-                self.nsd[d, opinion] += 1 # TODO: this line is missing from the notebook
                 self.nrs[opinion, w_id] += 1
                 self.ns[opinion] += 1
 
             # calculate theta and phi
-            theta[t] = self.theta()
-            phi[t] = self.phi()
-            # TODO: sample opinion phi
+            theta_topic[t] = self.theta_topic()
+            phi_topic[t] = self.phi_topic()
+
+            phi_opinion[t] = self.phi_opinion()
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
-        for t in np.mean(phi, axis=0):
+        for t in np.mean(phi_topic, axis=0):
             self.print_topic(t)
+        for t in np.mean(phi_opinion, axis=0):
+            self.print_opinion(t)
 
     def print_topic(self, weights):
         """Prints the top 10 words in the topics found."""
         words = [self.corpus.topicCorpus.dictionary.get(i)
                  for i in range(self.VT)]
+        l = zip(words, weights)
+        l.sort(key=lambda tup: tup[1])
+        print l[:len(l)-11:-1]
+
+    def print_opinion(self, weights):
+        """Prints the top 10 words in the topics found."""
+        words = [self.corpus.opinionCorpus.dictionary.get(i)
+                 for i in range(self.VO)]
         l = zip(words, weights)
         l.sort(key=lambda tup: tup[1])
         print l[:len(l)-11:-1]
