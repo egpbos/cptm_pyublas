@@ -16,6 +16,19 @@ import codecs
 import os
 
 
+def generate_opinion_words(topic_counter, num_topics, phi, vocabulary):
+    words = []
+    # select opinion (index) based on topic occurrence
+    om = np.array([float(topic_counter[i]) for i in range(num_topics)])
+    om /= sum(om)
+    for i in range(length_opinion):
+        # opinion words
+        topic = np.random.multinomial(1, om).argmax()
+        word = np.random.multinomial(1, phi[topic]).argmax()
+        words.append(vocabulary[word])
+    return words
+
+
 parser = argparse.ArgumentParser()
 #parser.add_argument('num_doc', help='the number of documents to be generated')
 #parser.add_argument('num_topic_words', help='the number of topic words per '
@@ -52,38 +65,42 @@ real_theta_topic = np.array([[1.0, 0.0, 0.0],
 real_phi_topic = np.array([[0.4, 0.2, 0.4, 0.0, 0.0, 0.0, 0.0],
                            [0.0, 0.3, 0.0, 0.35, 0.35, 0.0, 0.0],
                            [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5]])
-real_phi_opinion = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
-                             [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]])
+real_phi_opinion1 = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+                              [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]])
+real_phi_opinion2 = np.array([[0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                              [0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]])
 
 num_topics = real_theta_topic.shape[1]
+phi_perspectives = [real_phi_opinion1, real_phi_opinion2]
+num_perspectives = len(phi_perspectives)
 length_topic = 50
 length_opinion = 20
 
-for m, tm in enumerate(real_theta_topic):
-    out_file = os.path.join(args.out_dir, 'document{}.txt'.format(m+1))
-    print out_file
-    with codecs.open(out_file, 'wb', 'utf8') as f:
-        topic_words = []
-        topic_counter = Counter()
-        for i in range(length_topic):
-            # topic words
-            topic = np.random.multinomial(1, tm).argmax()
-            topic_counter[topic] += 1
-            word = np.random.multinomial(1, real_phi_topic[topic]).argmax()
-            topic_words.append(topic_vocabulary[word])
-        #print topic_counter
-        f.write('{}\n'.format(' '.join(topic_words)))
 
-        opinion_words = []
-        # select opinion (index) based on topic occurrence
-        om = np.array([float(topic_counter[i]) for i in range(num_topics)])
-        #print om
-        # normalize
-        om /= sum(om)
-        for i in range(length_opinion):
-            # opinion words
-            topic = np.random.multinomial(1, om).argmax()
-            word = np.random.multinomial(1, real_phi_opinion[topic]).argmax()
-            opinion_words.append(opinion_vocabulary[word])
-        f.write(' '.join(opinion_words))
+for p in range(num_perspectives):
+    p_dir = os.path.join(args.out_dir, 'p{}'.format(p))
+    print p_dir
+    if not os.path.exists(p_dir):
+        os.makedirs(p_dir)
+
+    for m, tm in enumerate(real_theta_topic):
+        out_file = os.path.join(p_dir, 'document{}.txt'.format(m+1))
+        print out_file
+        with codecs.open(out_file, 'wb', 'utf8') as f:
+            topic_words = []
+            topic_counter = Counter()
+            for i in range(length_topic):
+                # topic words
+                topic = np.random.multinomial(1, tm).argmax()
+                topic_counter[topic] += 1
+                word = np.random.multinomial(1, real_phi_topic[topic]).argmax()
+                topic_words.append(topic_vocabulary[word])
+            #print topic_counter
+            f.write('{}\n'.format(' '.join(topic_words)))
+
+            opinion_words = generate_opinion_words(topic_counter, num_topics,
+                                                   phi_perspectives[p],
+                                                   opinion_vocabulary)
+            f.write(' '.join(opinion_words))
