@@ -1,11 +1,18 @@
 """Script that generates a (synthetic) corpus to test the CPT model.
 
-The corpus consists of 5 documents containing fixed topics and opinions.
+A text document contains the topic words on the first line and the opinion
+words on the second line.
+The document generation process is described in the CPT paper.
 
-The generation process is described in the CPT paper.
+The corpus consists of two perspectives with each 5 documents containing fixed
+topics and opinions:
 
-A text document contains the topic words on the first line and the opion words
-on the second line.
+Topic                           Perspective /P0/    Perspective /P1/
+sun, ice_cream, beach           warm                swimming, sunny
+ice_cream, vanilla, chocolate   cold                bad
+broccoli, carrot                bad                 warm, good
+
+The documents for each perspective are stored in different directories.
 
 Usage: python generateCPTCorpus.py <out dir>
 """
@@ -42,20 +49,20 @@ args = parser.parse_args()
 if not os.path.exists(args.out_dir):
     os.makedirs(args.out_dir)
 
-topic_vocabulary = np.array(['zon',
-                             'ijs',
-                             'strand',
-                             'vanille',
-                             'chocola',
+topic_vocabulary = np.array(['sun',
+                             'ice_cream',
+                             'beach',
+                             'vanilla',
+                             'chocolate',
                              'broccoli',
-                             'wortel'])
+                             'carrot'])
 opinion_vocabulary = np.array(['warm',
-                               'zwemmen',
-                               'zonnig',
-                               'bewolkt',
-                               'vies',
-                               'lekker',
-                               'koud'])
+                               'swimming',
+                               'sunny',
+                               'cloudy',
+                               'bad',
+                               'good',
+                               'cold'])
 
 real_theta_topic = np.array([[1.0, 0.0, 0.0],
                              [0.0, 1.0, 0.0],
