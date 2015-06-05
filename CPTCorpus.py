@@ -26,10 +26,11 @@ class CorpusPerspective(gensim.corpora.TextCorpus):
 
 
 class Perspective():
-    def __init__(self, input):
+    def __init__(self, input, name):
         self.topicCorpus = CorpusPerspective(input, 0)
         self.opinionCorpus = CorpusPerspective(input, 1)
         self.input = input
+        self.name = name
 
     def __iter__(self):
         # topic_words and opinion_words are lists of actual words
@@ -46,10 +47,10 @@ class CPTCorpus():
         print input
         texts = glob.glob('{}/*.txt'.format(input[0]))
         print texts
-        self.perspectives = [Perspective(glob.glob('{}/*.txt'.format(d)))
+        self.perspectives = [Perspective(glob.glob('{}/*.txt'.format(d)), d)
                              for d in input]
         print 'number of perspectives:', len(self.perspectives)
-
+        print input
         # create dictionary with all topic words (universal mapping that can be
         # used with the corpora from different perspectives).
         self.topicDictionary = self.perspectives[0].topicCorpus.dictionary
@@ -80,6 +81,7 @@ class CPTCorpus():
 if __name__ == '__main__':
     files = glob.glob('/home/jvdzwaan/data/dilipad/generated/p*')
     files.sort()
+    print '\n'.join(files)
 
     corpus = CPTCorpus(files)
     print len(corpus)

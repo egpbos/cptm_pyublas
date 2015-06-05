@@ -207,10 +207,13 @@ class GibbsSampler():
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
+        print 'Topics:'
         for t in np.mean(phi_topic, axis=0):
             self.print_topic(t)
         print
+        print 'Opinions:'
         for p in range(self.numPerspectives):
+            print 'Perspective:', self.corpus.perspectives[p].name
             for t in np.mean(phi_opinion[p], axis=0):
                 self.print_opinion(t)
             print
