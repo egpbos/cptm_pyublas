@@ -65,7 +65,16 @@ class CPTCorpus():
             self.opinionDictionary.add_documents(p.opinionCorpus.get_texts(),
                                                  prune_at=None)
 
+    def words_in_document(self, doc, topic_or_opinion):
+        """Iterator over words in a document."""
+        i = 0
+        for w_id, freq in doc[topic_or_opinion]:
+            for j in range(freq):
+                yield w_id, i
+                i += 1
+
     def __iter__(self):
+        """Iterator over the documents in the corpus."""
         doc_id_global = 0
         for i, p in enumerate(self.perspectives):
             doc_id_perspective = 0

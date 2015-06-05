@@ -62,11 +62,8 @@ class GibbsSampler():
                    for p in self.corpus.perspectives]
 
         # loop over the words in the corpus
-        #print len(self.corpus.perspectives)
-        for d, p, d_p, doc in self.corpus:
-            #print d, p, d_p, doc
-            for w_id, i in self._words_in_document(doc, 'topic'):
-                #print w_id, i
+        for d, persp, d_p, doc in self.corpus:
+            for w_id, i in self.corpus.words_in_document(doc, 'topic'):
                 topic = np.random.randint(0, self.nTopics)
                 self.z[d, i] = topic
                 self.ndk[d, topic] += 1
@@ -74,21 +71,12 @@ class GibbsSampler():
                 self.nk[topic] += 1
                 self.ntd[d] += 1
 
-            for w_id, i in self._words_in_document(doc, 'opinion'):
-                #print w_id, i
+            for w_id, i in self.corpus.words_in_document(doc, 'opinion'):
                 opinion = np.random.randint(0, self.nTopics)
-                self.x[p][d_p, i] = opinion
-                self.nrs[p][opinion, w_id] += 1
-                self.ns[p][opinion] += 1
+                self.x[persp][d_p, i] = opinion
+                self.nrs[persp][opinion, w_id] += 1
+                self.ns[persp][opinion] += 1
         logger.debug('Finished initialization.')
-
-    def _words_in_document(self, doc, topic_or_opinion):
-        """Iterates over the words in  the corpus."""
-        i = 0
-        for w_id, freq in doc[topic_or_opinion]:
-            for j in range(freq):
-                yield w_id, i
-                i += 1
 
     def p_z(self, d, w_id):
         """Calculate (normalized) probabilities for p(w|z) (topics).
@@ -168,9 +156,7 @@ class GibbsSampler():
             logger.debug('Iteration {} of {}'.format(t+1, self.nIter))
 
             for d, persp, d_p, doc in self.corpus:
-                #print d, p, d_p, doc
-                for w_id, i in self._words_in_document(doc, 'topic'):
-                    #print w_id, i
+                for w_id, i in self.corpus.words_in_document(doc, 'topic'):
                     topic = self.z[d, i]
 
                     self.ndk[d, topic] -= 1
@@ -185,9 +171,7 @@ class GibbsSampler():
                     self.nkw[topic, w_id] += 1
                     self.nk[topic] += 1
 
-                for w_id, i in self._words_in_document(doc, 'opinion'):
-                    #print w_id, i
-                    #print p, d_p, i
+                for w_id, i in self.corpus.words_in_document(doc, 'opinion'):
                     opinion = self.x[persp][d_p, i]
 
                     self.nrs[persp][opinion, w_id] -= 1
