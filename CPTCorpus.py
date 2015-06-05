@@ -1,62 +1,35 @@
 """Class to access CPT corpus."""
-
+import logging
 import gensim
 import glob
 import codecs
 from itertools import izip
 
 
-class CorpusPerspective(gensim.corpora.TextCorpus):
-    def __init__(self, input, lineNumber=0):
-        self.lineNumber = lineNumber
-        self.maxDocLength = 0
-        super(CorpusPerspective, self).__init__(input)
-
-    def get_texts(self):
-        for txt in self.input:
-            with codecs.open(txt, 'rb', 'utf8') as f:
-                lines = f.readlines()
-                words = []
-                if len(lines) >= (self.lineNumber+1):
-                        words = lines[self.lineNumber].split()
-
-                        # keep track of the maximum document length
-                        if len(words) > self.maxDocLength:
-                            self.maxDocLength = len(words)
-                yield words
-
-    def __len__(self):
-        return super(CorpusPerspective, self).__len__()
-
-
-class Perspective():
-    def __init__(self, input, name):
-        self.topicCorpus = CorpusPerspective(input, 0)
-        self.opinionCorpus = CorpusPerspective(input, 1)
-        self.input = input
-        self.name = name
-
-    def __iter__(self):
-        # topic_words and opinion_words are lists of actual words
-        for topic_words, opinion_words in izip(self.topicCorpus.get_texts(),
-                                               self.opinionCorpus.get_texts()):
-            yield {'topic': topic_words, 'opinion': opinion_words}
-
-    def __len__(self):
-        return len(self.input)
+logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
 
 
 class CPTCorpus():
+    """Class to manage CPT corpus.
+
+    Parameters:
+        input : list of str
+            A list containing names of directories representing the different
+            perspectives. Every directory contains a text file for each
+            document in the perspective. A text file contains the topic words
+            on the first line and the opinion words on the second line. Words
+            are separated by spaces.
+    """
     def __init__(self, input):
-        print input
-        texts = glob.glob('{}/*.txt'.format(input[0]))
-        print texts
+        logger.info('initialize CPT Corpus with {} perspectives'
+                    .format(len(input)))
         self.perspectives = [Perspective(glob.glob('{}/*.txt'.format(d)), d)
                              for d in input]
-        print 'number of perspectives:', len(self.perspectives)
-        print input
-        # create dictionary with all topic words (universal mapping that can be
-        # used with the corpora from different perspectives).
+
+        # create dictionaries with all topic and opinion words (universal
+        # mappings that can be used with the corpora from different
+        # perspectives).
         self.topicDictionary = self.perspectives[0].topicCorpus.dictionary
         self.opinionDictionary = self.perspectives[0].opinionCorpus.dictionary
         for p in self.perspectives[1:]:
@@ -66,7 +39,7 @@ class CPTCorpus():
                                                  prune_at=None)
 
     def words_in_document(self, doc, topic_or_opinion):
-        """Iterator over words in a document."""
+        """Iterator over the individual word positions in a document."""
         i = 0
         for w_id, freq in doc[topic_or_opinion]:
             for j in range(freq):
@@ -89,6 +62,61 @@ class CPTCorpus():
 
     def __len__(self):
         return sum([len(p) for p in self.perspectives])
+
+
+class Perspective():
+    """Class representing a perspective in cross perspective topic modeling.
+    This class contains two text corpora, one for the topic words and one for
+    the opinion words. It is used by the class CTPCorpus.
+
+    Parameters:
+        input : list of strings
+            List containing the file names of the documents in the corpus
+            (.txt). A text file contains the topic words on the first line and
+            opinion words on the second line.
+    """
+    def __init__(self, input, name):
+        logger.info('initialize perspective "{}" ({} documents)'
+                    .format(name, len(input)))
+        self.topicCorpus = PerspectiveCorpus(input, 0)
+        self.opinionCorpus = PerspectiveCorpus(input, 1)
+        self.input = input
+        self.name = name
+
+    def __iter__(self):
+        # topic_words and opinion_words are lists of actual words
+        for topic_words, opinion_words in izip(self.topicCorpus.get_texts(),
+                                               self.opinionCorpus.get_texts()):
+            yield {'topic': topic_words, 'opinion': opinion_words}
+
+    def __len__(self):
+        return len(self.input)
+
+
+class PerspectiveCorpus(gensim.corpora.TextCorpus):
+    """Wrapper for corpus representing a perspective.
+    Used by Perspective class.
+    """
+    def __init__(self, input, lineNumber=0):
+        self.lineNumber = lineNumber
+        self.maxDocLength = 0
+        super(PerspectiveCorpus, self).__init__(input)
+
+    def get_texts(self):
+        for txt in self.input:
+            with codecs.open(txt, 'rb', 'utf8') as f:
+                lines = f.readlines()
+                words = []
+                if len(lines) >= (self.lineNumber+1):
+                        words = lines[self.lineNumber].split()
+
+                        # keep track of the maximum document length
+                        if len(words) > self.maxDocLength:
+                            self.maxDocLength = len(words)
+                yield words
+
+    def __len__(self):
+        return super(PerspectiveCorpus, self).__len__()
 
 
 if __name__ == '__main__':
