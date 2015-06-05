@@ -9,6 +9,7 @@ from itertools import izip
 class CorpusPerspective(gensim.corpora.TextCorpus):
     def __init__(self, input, lineNumber=0):
         self.lineNumber = lineNumber
+        self.maxDocLength = 0
         super(CorpusPerspective, self).__init__(input)
 
     def get_texts(self):
@@ -18,7 +19,10 @@ class CorpusPerspective(gensim.corpora.TextCorpus):
                 words = []
                 if len(lines) >= (self.lineNumber+1):
                         words = lines[self.lineNumber].split()
-                        #print words
+
+                        # keep track of the maximum document length
+                        if len(words) > self.maxDocLength:
+                            self.maxDocLength = len(words)
                 yield words
 
     def __len__(self):

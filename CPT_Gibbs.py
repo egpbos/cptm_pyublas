@@ -32,8 +32,6 @@ class GibbsSampler():
         self.numPerspectives = len(self.corpus.perspectives)
         self.beta_o = beta_o
         self.nIter = nIter
-        self.maxDocLengthT = 100  # TODO: replace for actual value
-        self.maxDocLengthO = 100  # TODO: replace for actual value
 
         #self._initialize()
 
@@ -43,6 +41,10 @@ class GibbsSampler():
         self.VO = len(self.corpus.opinionDictionary)
         self.DT = len(self.corpus)
         self.DO = [len(p.opinionCorpus) for p in self.corpus.perspectives]
+        self.maxDocLengthT = max([p.topicCorpus.maxDocLength
+                                 for p in self.corpus.perspectives])
+        self.maxDocLengthO = [p.opinionCorpus.maxDocLength
+                              for p in self.corpus.perspectives]
 
         # topics
         self.z = np.zeros((self.DT, self.maxDocLengthT), dtype=np.int)
@@ -52,7 +54,7 @@ class GibbsSampler():
         self.ntd = np.zeros(self.DT, dtype=np.float)
 
         # opinions
-        self.x = [np.zeros((self.DO[i], self.maxDocLengthO), dtype=np.int)
+        self.x = [np.zeros((self.DO[i], self.maxDocLengthO[i]), dtype=np.int)
                   for i, p in enumerate(self.corpus.perspectives)]
         self.nrs = [np.zeros((self.nTopics, self.VO), dtype=np.int)
                     for p in self.corpus.perspectives]
@@ -241,6 +243,6 @@ if __name__ == '__main__':
     files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
 
     corpus = CPTCorpus.CPTCorpus(files)
-    sampler = GibbsSampler(corpus, nTopics=3, nIter=100)
+    sampler = GibbsSampler(corpus, nTopics=3, nIter=2)
     sampler._initialize()
     sampler.run()
