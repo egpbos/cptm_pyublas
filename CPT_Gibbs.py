@@ -16,6 +16,7 @@ import CPTCorpus
 import glob
 import logging
 import time
+import pandas as pd
 
 
 logger = logging.getLogger(__name__)
@@ -205,6 +206,17 @@ class GibbsSampler():
                 self.print_opinion(t)
             print
 
+        self.topics = self.to_df(phi_topic, self.corpus.topicDictionary,
+                                 self.VT)
+        self.opinions = [self.to_df(phi_opinion[p],
+                                    self.corpus.opinionDictionary,
+                                    self.VO)
+                         for p in range(self.numPerspectives)]
+        print self.topics
+        for p in range(self.numPerspectives):
+            print self.corpus.perspectives[p].name
+            print self.opinions[p]
+
     def print_topic(self, weights):
         """Prints the top 10 words in the topics found."""
         words = [self.corpus.topicDictionary.get(i)
@@ -221,14 +233,31 @@ class GibbsSampler():
         l.sort(key=lambda tup: tup[1])
         print l[:len(l)-11:-1]
 
+    def to_df(self, phi, dictionary, vocabulary):
+        words = [dictionary.get(i) for i in range(vocabulary)]
+        data = np.mean(phi, axis=0)
+        df = pd.DataFrame(data, columns=words)
+        return df.transpose()
+
+    def topics_and_opinions_to_csv(self):
+        # TODO: allow user to specify the path where the files are saved
+        # TODO: fix case when self.topics and/or self.opinions do not exist
+        self.topics.to_csv('topics.csv')
+        for p in range(self.numPerspectives):
+            p_name = self.corpus.perspectives[p].name.rsplit('/', 1)[1]
+            f_name = 'opinions_{}.csv'.format(p_name)
+            self.opinions[p].to_csv(f_name)
+
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
-    #files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
-    files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
+    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
+    #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
 
     corpus = CPTCorpus.CPTCorpus(files)
-    sampler = GibbsSampler(corpus, nTopics=25, nIter=100)
+    sampler = GibbsSampler(corpus, nTopics=3, nIter=2)
     sampler._initialize()
     sampler.run()
+    #sampler.print_topics_and_opinions()
+    sampler.topics_and_opinions_to_csv()
