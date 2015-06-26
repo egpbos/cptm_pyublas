@@ -195,16 +195,6 @@ class GibbsSampler():
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
-        print 'Topics:'
-        for t in np.mean(phi_topic, axis=0):
-            self.print_topic(t)
-        print
-        print 'Opinions:'
-        for p in range(self.numPerspectives):
-            print 'Perspective:', self.corpus.perspectives[p].name
-            for t in np.mean(phi_opinion[p], axis=0):
-                self.print_opinion(t)
-            print
 
         self.topics = self.to_df(phi_topic, self.corpus.topicDictionary,
                                  self.VT)
@@ -212,26 +202,31 @@ class GibbsSampler():
                                     self.corpus.opinionDictionary,
                                     self.VO)
                          for p in range(self.numPerspectives)]
-        print self.topics
-        for p in range(self.numPerspectives):
-            print self.corpus.perspectives[p].name
-            print self.opinions[p]
 
-    def print_topic(self, weights):
-        """Prints the top 10 words in the topics found."""
-        words = [self.corpus.topicDictionary.get(i)
-                 for i in range(self.VT)]
-        l = zip(words, weights)
-        l.sort(key=lambda tup: tup[1])
-        print l[:len(l)-11:-1]
+    def print_topics_and_opinions(self, top=10):
+        """Print topics and associated opinions.
 
-    def print_opinion(self, weights):
-        """Prints the top 10 words in the topics found."""
-        words = [self.corpus.opinionDictionary.get(i)
-                 for i in range(self.VO)]
-        l = zip(words, weights)
-        l.sort(key=lambda tup: tup[1])
-        print l[:len(l)-11:-1]
+        The <top> top words and weights are printed.
+        """
+        # TODO: print perspective name (name of final dir) instead of perspective index
+        for i in range(self.nTopics):
+            print 'Topic {}: {}'. \
+                  format(i, self.print_topic(self.topics.loc[:, i].copy(),
+                                             top))
+            print
+            for p in range(self.numPerspectives):
+                print 'Opinion {}: {}'. \
+                      format(p, self.print_topic(self.opinions[p].loc[:, i].copy(),
+                                                 top))
+            print '-----'
+            print
+
+    def print_topic(self, series, top=10):
+        """Prints the top 10 words in the topic/opinion on a single line."""
+        series.sort(ascending=False)
+        t = ['{} ({:.4f})'.format(word, p)
+             for word, p in series[0:top].iteritems()]
+        return ' - '.join(t)
 
     def to_df(self, phi, dictionary, vocabulary):
         words = [dictionary.get(i) for i in range(vocabulary)]
@@ -259,5 +254,5 @@ if __name__ == '__main__':
     sampler = GibbsSampler(corpus, nTopics=3, nIter=2)
     sampler._initialize()
     sampler.run()
-    #sampler.print_topics_and_opinions()
+    sampler.print_topics_and_opinions()
     sampler.topics_and_opinions_to_csv()
