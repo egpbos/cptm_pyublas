@@ -208,7 +208,6 @@ class GibbsSampler():
 
         The <top> top words and weights are printed.
         """
-        # TODO: print perspective name (name of final dir) instead of perspective index
         for i in range(self.nTopics):
             print 'Topic {}: {}'. \
                   format(i, self.print_topic(self.topics.loc[:, i].copy(),
@@ -216,8 +215,9 @@ class GibbsSampler():
             print
             for p in range(self.numPerspectives):
                 print 'Opinion {}: {}'. \
-                      format(p, self.print_topic(self.opinions[p].loc[:, i].copy(),
-                                                 top))
+                      format(self.corpus.perspectives[p].name,
+                             self.print_topic(self.opinions[p].loc[:, i].copy(),
+                                              top))
             print '-----'
             print
 
@@ -239,7 +239,7 @@ class GibbsSampler():
         # TODO: fix case when self.topics and/or self.opinions do not exist
         self.topics.to_csv('topics.csv')
         for p in range(self.numPerspectives):
-            p_name = self.corpus.perspectives[p].name.rsplit('/', 1)[1]
+            p_name = self.corpus.perspectives[p].name
             f_name = 'opinions_{}.csv'.format(p_name)
             self.opinions[p].to_csv(f_name)
 

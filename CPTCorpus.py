@@ -75,13 +75,15 @@ class Perspective():
             (.txt). A text file contains the topic words on the first line and
             opinion words on the second line.
     """
-    def __init__(self, input, name):
-        logger.info('initialize perspective "{}" ({} documents)'
-                    .format(name, len(input)))
+    def __init__(self, input, directory):
+        name = directory.rsplit('/', 1)[1]
+        logger.info('initialize perspective "{}" (path: {} - {} documents)'
+                    .format(name, directory, len(input)))
         self.topicCorpus = PerspectiveCorpus(input, 0)
         self.opinionCorpus = PerspectiveCorpus(input, 1)
         self.input = input
         self.name = name
+        self.directory = directory
 
     def __iter__(self):
         # topic_words and opinion_words are lists of actual words
