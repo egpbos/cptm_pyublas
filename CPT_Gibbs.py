@@ -98,7 +98,8 @@ class GibbsSampler():
         The probabilities are normalized, because that makes it easier to
         sample from them.
         """
-        f1 = (self.nrs[p][:, w_id]+self.beta_o)/(self.ns[p]+self.beta_o*self.VO)
+        f1 = (self.nrs[p][:, w_id]+self.beta_o) / \
+             (self.ns[p]+self.beta_o*self.VO)
         # The paper says f2 = nsd (the number of times topic s occurs in
         # document d) / Ntd (the number of topic words in document d).
         # 's' is used to refer to opinions. However, f2 makes more sense as the
@@ -224,9 +225,10 @@ class GibbsSampler():
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
-    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
+    #files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
+    files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
 
     corpus = CPTCorpus.CPTCorpus(files)
-    sampler = GibbsSampler(corpus, nTopics=3, nIter=2)
+    sampler = GibbsSampler(corpus, nTopics=25, nIter=100)
     sampler._initialize()
     sampler.run()
