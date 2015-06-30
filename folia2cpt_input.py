@@ -89,7 +89,9 @@ for i, data_file in enumerate(data_files):
         for p, persp in data.iteritems():
             logger.info('{}: {}'.format(data_file, persp))
 
-    xml_file = os.path.join(data_dir, data_file)
     # write data to file
+    min_words = 100
     for p, persp in data.iteritems():
-        persp.write2file(out_dir, '{}.txt'.format(data_file))
+        if len(persp.topic_words) > min_words and \
+           len(persp.opinion_words) > min_words:
+            persp.write2file(out_dir, '{}.txt'.format(data_file))
