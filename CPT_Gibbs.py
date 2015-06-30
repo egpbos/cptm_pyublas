@@ -209,12 +209,12 @@ class GibbsSampler():
         The <top> top words and weights are printed.
         """
         for i in range(self.nTopics):
-            print 'Topic {}: {}'. \
+            print u'Topic {}: {}'. \
                   format(i, self.print_topic(self.topics.loc[:, i].copy(),
                                              top))
             print
             for p in range(self.numPerspectives):
-                print 'Opinion {}: {}'. \
+                print u'Opinion {}: {}'. \
                       format(self.corpus.perspectives[p].name,
                              self.print_topic(self.opinions[p].loc[:, i].copy(),
                                               top))
@@ -224,9 +224,9 @@ class GibbsSampler():
     def print_topic(self, series, top=10):
         """Prints the top 10 words in the topic/opinion on a single line."""
         series.sort(ascending=False)
-        t = ['{} ({:.4f})'.format(word, p)
+        t = [u'{} ({:.4f})'.format(word, p)
              for word, p in series[0:top].iteritems()]
-        return ' - '.join(t)
+        return u' - '.join(t)
 
     def to_df(self, phi, dictionary, vocabulary):
         words = [dictionary.get(i) for i in range(vocabulary)]
@@ -237,21 +237,22 @@ class GibbsSampler():
     def topics_and_opinions_to_csv(self):
         # TODO: allow user to specify the path where the files are saved
         # TODO: fix case when self.topics and/or self.opinions do not exist
-        self.topics.to_csv('topics.csv')
+        self.topics.to_csv('topics.csv', encoding='utf8')
         for p in range(self.numPerspectives):
             p_name = self.corpus.perspectives[p].name
             f_name = 'opinions_{}.csv'.format(p_name)
-            self.opinions[p].to_csv(f_name)
+            self.opinions[p].to_csv(f_name, encoding='utf8')
 
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
-    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
-    #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
+    #files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
+    files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
 
     corpus = CPTCorpus.CPTCorpus(files)
-    sampler = GibbsSampler(corpus, nTopics=3, nIter=2)
+    corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
+    sampler = GibbsSampler(corpus, nTopics=100, nIter=1)
     sampler._initialize()
     sampler.run()
     sampler.print_topics_and_opinions()
