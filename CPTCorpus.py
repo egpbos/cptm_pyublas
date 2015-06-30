@@ -4,6 +4,7 @@ import gensim
 import glob
 import codecs
 from itertools import izip
+from collections import Counter
 
 
 logger = logging.getLogger(__name__)
@@ -62,6 +63,95 @@ class CPTCorpus():
 
     def __len__(self):
         return sum([len(p) for p in self.perspectives])
+
+    def calculate_tf_and_df(self):
+        self.topic_tf = Counter()
+        self.topic_df = Counter()
+
+        self.opinion_tf = Counter()
+        self.opinion_df = Counter()
+
+        for doc_id_global, i, doc_id_perspective, doc in self:
+            doc_words_topic = set()
+            for w_id, freq in doc['topic']:
+                self.topic_tf[w_id] += freq
+                doc_words_topic.add(w_id)
+            self.topic_df.update(doc_words_topic)
+
+            doc_words_opinion = set()
+            for w_id, freq in doc['opinion']:
+                self.opinion_tf[w_id] += freq
+                doc_words_opinion.add(w_id)
+            self.opinion_df.update(doc_words_opinion)
+
+    def filter_dictionaries(self, minFreq, removeTopTF, removeTopDF):
+        logger.info('Filtering dictionaries')
+        self.calculate_tf_and_df()
+        self.filter_min_frequency(minFreq)
+        self.filter_top_tf(removeTopTF)
+        self.filter_top_df(removeTopDF)
+
+        self.topicDictionary.compactify()
+        self.opinionDictionary.compactify()
+        logger.info('topic dictionary: {}'.format(self.topicDictionary))
+        logger.info('opinion dictionary: {}'.format(self.opinionDictionary))
+
+    def filter_min_frequency(self, minFreq=5):
+        logger.info('Removing tokens from dictionaries with frequency < {}'.
+                    format(minFreq))
+
+        logger.debug('topic dict. before: {}'.format(self.topicDictionary))
+        self._remove_from_dict_min_frequency(self.topicDictionary,
+                                             self.topic_tf, minFreq)
+        logger.debug('topic dict. after: {}'.format(self.topicDictionary))
+
+        logger.debug('opinion dict. before: {}'.format(self.opinionDictionary))
+        self._remove_from_dict_min_frequency(self.opinionDictionary,
+                                             self.opinion_tf, minFreq)
+        logger.debug('opinion dict. after: {}'.format(self.opinionDictionary))
+
+    def _remove_from_dict_min_frequency(self, dictionary, tf, minFreq):
+        remove_ids = []
+        for w_id, freq in tf.iteritems():
+            if freq < minFreq:
+                remove_ids.append(w_id)
+        logger.debug('removing {} tokens'.format(len(remove_ids)))
+        dictionary.filter_tokens(bad_ids=remove_ids)
+
+    def filter_top_tf(self, removeTop):
+        logger.info('Removing {} most frequent tokens (top tf)'.
+                    format(removeTop))
+
+        logger.debug('topic dict. before: {}'.format(self.topicDictionary))
+        self._remove_from_dict_top(self.topicDictionary, self.topic_tf,
+                                   removeTop)
+        logger.debug('topic dict. after: {}'.format(self.topicDictionary))
+
+        logger.debug('opinion dict. before: {}'.format(self.opinionDictionary))
+        self._remove_from_dict_top(self.opinionDictionary, self.opinion_tf,
+                                   removeTop)
+        logger.debug('opinion dict. after: {}'.format(self.opinionDictionary))
+
+    def filter_top_df(self, removeTop):
+        logger.info('Removing {} most frequent tokens (top df)'.
+                    format(removeTop))
+
+        logger.debug('topic dict. before: {}'.format(self.topicDictionary))
+        self._remove_from_dict_top(self.topicDictionary, self.topic_df,
+                                   removeTop)
+        logger.debug('topic dict. after: {}'.format(self.topicDictionary))
+
+        logger.debug('opinion dict. before: {}'.format(self.opinionDictionary))
+        self._remove_from_dict_top(self.opinionDictionary, self.opinion_df,
+                                   removeTop)
+        logger.debug('opinion dict. after: {}'.format(self.opinionDictionary))
+
+    def _remove_from_dict_top(self, dictionary, frequencies, top=100):
+        remove_ids = []
+        for w_id, freq in frequencies.most_common(top):
+            remove_ids.append(w_id)
+        dictionary.filter_tokens(bad_ids=remove_ids)
+        logger.debug('removing {} tokens'.format(len(remove_ids)))
 
 
 class Perspective():
@@ -122,30 +212,33 @@ class PerspectiveCorpus(gensim.corpora.TextCorpus):
 
 
 if __name__ == '__main__':
-    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/p*')
+    logger.setLevel(logging.DEBUG)
+    #files = glob.glob('/home/jvdzwaan/data/dilipad/generated/p*')
+    files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
     files.sort()
-    print '\n'.join(files)
+    #print '\n'.join(files)
 
     corpus = CPTCorpus(files)
-    print len(corpus)
+    corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
+    #print len(corpus)
     #print corpus.dictionary
-    for doc in corpus:
-        print doc
+    #for doc in corpus:
+    #    print doc
         #for w in doc:
         #    print corpus.dictionary[w[0]]
-        print '----------'
+    #    print '----------'
     #print len(corpus.dictionary)
     #a = [sum([f for w, f in doc]) for doc in corpus]
     #print len(a)
     #print sorted(a)
     #print max(a)
 
-    print 'topic words'
-    for k, v in corpus.topicDictionary.iteritems():
-        print k, v
-    print '\nopinion words'
-    for k, v in corpus.opinionDictionary.iteritems():
-        print k, v
+    #print 'topic words'
+    #for k, v in corpus.topicDictionary.iteritems():
+    #    print k, v
+    #print '\nopinion words'
+    #for k, v in corpus.opinionDictionary.iteritems():
+    #    print k, v
     #b = corpus.dictionary.keys()
     #b.sort()
     #print b
