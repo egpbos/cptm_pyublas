@@ -3,6 +3,8 @@ import gzip
 from lxml import etree
 import logging
 import codecs
+from fuzzywuzzy import process, fuzz
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
@@ -30,6 +32,7 @@ class Perspective():
 
         # write words to file
         out_file = os.path.join(directory, file_name)
+        logger.debug('Writing file {} for perspective {}'.format(out_file, self.name))
         with codecs.open(out_file, 'wb', 'utf8') as f:
             f.write(u'{}\n'.format(' '.join(self.topic_words)))
             f.write(u'{}\n'.format(' '.join(self.opinion_words)))
@@ -43,6 +46,9 @@ party_tag = '{http://www.politicalmashup.nl}party'
 
 pos_topic_words = ['N']
 pos_opinion_words = ['WW', 'ADJ', 'BW']
+
+known_parties = ['CDA', 'D66', 'GPV', 'GroenLinks', 'OSF', 'PvdA', 'RPF',
+                 'SGP', 'SP', 'VVD']
 
 out_dir = '/home/jvdzwaan/data/dilipad/perspectives/'
 if not os.path.exists(out_dir):
@@ -61,6 +67,8 @@ for i, data_file in enumerate(data_files):
     context = etree.iterparse(f, events=('end',), tag=speech_tag, huge_tree=True)
 
     data = {}
+    for party in known_parties:
+        data[party] = Perspective(party)
     num_speech = 0
     num_speech_without_party = 0
 
@@ -68,8 +76,25 @@ for i, data_file in enumerate(data_files):
         num_speech += 1
         party = elem.attrib.get(party_tag)
         if party:
+            # prevent unwanted subdirectories to be created (happens when there
+            # is a / in the party name)
+            party = party.replace('/', '-')
+
             if not data.get(party):
-                data[party] = Perspective(party)
+                p, score1 = process.extractOne(party, known_parties)
+                score2 = fuzz.ratio(party, p)
+                logger.debug('Found match for "{}" to known party "{}" (scores: {}, {})'.format(party, p, score1, score2))
+                if score1 >= 90 and score2 >= 90:
+                    # change party to known party
+                    logger.debug('Change party "{}" to known party "{}"'.format(party, p))
+                    party = p
+                    if not data.get(party):
+                        data[party] = Perspective(party)
+                else:
+                    # add new Perspective
+                    logger.debug('Add new perspective for party "{}"'.format(party))
+                    data[party] = Perspective(party)
+
             # find all words
             word_elems = elem.findall('.//{}'.format(word_tag))
             for w in word_elems:

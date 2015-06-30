@@ -2,3 +2,5 @@ lxml
 numpy
 gensim
 pandas
+python-Levenshtein
+fuzzywuzzy
