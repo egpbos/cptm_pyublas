@@ -117,6 +117,6 @@ for i, data_file in enumerate(data_files):
     # write data to file
     min_words = 100
     for p, persp in data.iteritems():
-        if len(persp.topic_words) > min_words and \
-           len(persp.opinion_words) > min_words:
+        if len(persp.topic_words) >= min_words and \
+           len(persp.opinion_words) >= min_words:
             persp.write2file(out_dir, '{}.txt'.format(data_file))
