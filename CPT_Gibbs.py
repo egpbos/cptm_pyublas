@@ -202,6 +202,7 @@ class GibbsSampler():
                                     self.corpus.opinionDictionary,
                                     self.VO)
                          for p in range(self.numPerspectives)]
+        self.document_topic_matrix = self.to_df(theta_topic)
 
     def print_topics_and_opinions(self, top=10):
         """Print topics and associated opinions.
@@ -228,16 +229,23 @@ class GibbsSampler():
              for word, p in series[0:top].iteritems()]
         return u' - '.join(t)
 
-    def to_df(self, phi, dictionary, vocabulary):
-        words = [dictionary.get(i) for i in range(vocabulary)]
-        data = np.mean(phi, axis=0)
-        df = pd.DataFrame(data, columns=words)
-        return df.transpose()
+    def to_df(self, matrix, dictionary=None, vocabulary=None):
+        data = np.mean(matrix, axis=0)
+        if dictionary and vocabulary:
+            # phi (topics and opinions)
+            words = [dictionary.get(i) for i in range(vocabulary)]
+            df = pd.DataFrame(data, columns=words)
+            df = df.transpose()
+        else:
+            # theta (topic document matrix)
+            df = pd.DataFrame(data)
+        return df
 
     def topics_and_opinions_to_csv(self):
         # TODO: allow user to specify the path where the files are saved
         # TODO: fix case when self.topics and/or self.opinions do not exist
         self.topics.to_csv('topics.csv', encoding='utf8')
+        self.document_topic_matrix.to_csv('document-topic.csv')
         for p in range(self.numPerspectives):
             p_name = self.corpus.perspectives[p].name
             f_name = 'opinions_{}.csv'.format(p_name)
