@@ -4,6 +4,8 @@ from lxml import etree
 import logging
 import codecs
 from fuzzywuzzy import process, fuzz
+import argparse
+import glob
 
 
 logger = logging.getLogger(__name__)
@@ -37,86 +39,97 @@ class Perspective():
             f.write(u'{}\n'.format(' '.join(self.topic_words)))
             f.write(u'{}\n'.format(' '.join(self.opinion_words)))
 
-word_tag = '{http://ilk.uvt.nl/FoLiA}w'
-pos_tag = '{http://ilk.uvt.nl/FoLiA}pos'
-t_tag = '{http://ilk.uvt.nl/FoLiA}t'
-lemma_tag = '{http://ilk.uvt.nl/FoLiA}lemma'
-speech_tag = '{http://www.politicalmashup.nl}speech'
-party_tag = '{http://www.politicalmashup.nl}party'
 
-pos_topic_words = ['N']
-pos_opinion_words = ['WW', 'ADJ', 'BW']
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dir_in', help='directory containing the data '
+                        '(gzipped FoLiA XML files)')
+    parser.add_argument('dir_out', help='the name of the dir where the '
+                        'CPT corpus should be saved.')
+    args = parser.parse_args()
 
-known_parties = ['CDA', 'D66', 'GPV', 'GroenLinks', 'OSF', 'PvdA', 'RPF',
-                 'SGP', 'SP', 'VVD']
+    dir_in = args.dir_in
+    dir_out = args.dir_out
 
-out_dir = '/home/jvdzwaan/data/dilipad/perspectives/'
-if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
+    if not os.path.exists(dir_out):
+        os.makedirs(dir_out)
 
-data_dir = '/home/jvdzwaan/data/dilipad'
-data_files = [d for d in os.listdir(data_dir) if d.endswith('.xml.gz')]
+    word_tag = '{http://ilk.uvt.nl/FoLiA}w'
+    pos_tag = '{http://ilk.uvt.nl/FoLiA}pos'
+    t_tag = '{http://ilk.uvt.nl/FoLiA}t'
+    lemma_tag = '{http://ilk.uvt.nl/FoLiA}lemma'
+    speech_tag = '{http://www.politicalmashup.nl}speech'
+    party_tag = '{http://www.politicalmashup.nl}party'
 
-for i, data_file in enumerate(data_files):
-    logger.debug('{} ({} of {})'.format(data_file, i+1, len(data_files)))
-    if i % NUMBER == 0:
-        logger.info('{} ({} of {})'.format(data_file, i+1, len(data_files)))
+    pos_topic_words = ['N']
+    pos_opinion_words = ['WW', 'ADJ', 'BW']
 
-    xml_file = os.path.join(data_dir, data_file)
-    f = gzip.open(xml_file)
-    context = etree.iterparse(f, events=('end',), tag=speech_tag, huge_tree=True)
+    known_parties = ['CDA', 'D66', 'GPV', 'GroenLinks', 'OSF', 'PvdA', 'RPF',
+                     'SGP', 'SP', 'VVD']
 
-    data = {}
-    for party in known_parties:
-        data[party] = Perspective(party)
-    num_speech = 0
-    num_speech_without_party = 0
+    data_files = glob.glob('{}/*/data_folia/*.xml.gz'.format(dir_in))
 
-    for event, elem in context:
-        num_speech += 1
-        party = elem.attrib.get(party_tag)
-        if party:
-            # prevent unwanted subdirectories to be created (happens when there
-            # is a / in the party name)
-            party = party.replace('/', '-')
+    for i, data_file in enumerate(data_files):
+        logger.debug('{} ({} of {})'.format(data_file, i+1, len(data_files)))
+        if i % NUMBER == 0:
+            logger.info('{} ({} of {})'.format(data_file, i+1,
+                                               len(data_files)))
 
-            if not data.get(party):
-                p, score1 = process.extractOne(party, known_parties)
-                score2 = fuzz.ratio(party, p)
-                logger.debug('Found match for "{}" to known party "{}" (scores: {}, {})'.format(party, p, score1, score2))
-                if score1 >= 90 and score2 >= 90:
-                    # change party to known party
-                    logger.debug('Change party "{}" to known party "{}"'.format(party, p))
-                    party = p
-                    if not data.get(party):
+        f = gzip.open(data_file)
+        context = etree.iterparse(f, events=('end',), tag=speech_tag,
+                                  huge_tree=True)
+
+        data = {}
+        for party in known_parties:
+            data[party] = Perspective(party)
+        num_speech = 0
+        num_speech_without_party = 0
+
+        for event, elem in context:
+            num_speech += 1
+            party = elem.attrib.get(party_tag)
+            if party:
+                # prevent unwanted subdirectories to be created (happens when there
+                # is a / in the party name)
+                party = party.replace('/', '-')
+
+                if not data.get(party):
+                    p, score1 = process.extractOne(party, known_parties)
+                    score2 = fuzz.ratio(party, p)
+                    logger.debug('Found match for "{}" to known party "{}" (scores: {}, {})'.format(party, p, score1, score2))
+                    if score1 >= 90 and score2 >= 90:
+                        # change party to known party
+                        logger.debug('Change party "{}" to known party "{}"'.format(party, p))
+                        party = p
+                        if not data.get(party):
+                            data[party] = Perspective(party)
+                    else:
+                        # add new Perspective
+                        logger.debug('Add new perspective for party "{}"'.format(party))
                         data[party] = Perspective(party)
-                else:
-                    # add new Perspective
-                    logger.debug('Add new perspective for party "{}"'.format(party))
-                    data[party] = Perspective(party)
 
-            # find all words
-            word_elems = elem.findall('.//{}'.format(word_tag))
-            for w in word_elems:
-                pos = w.find(pos_tag).attrib.get('class')
-                l = w.find(lemma_tag).attrib.get('class')
-                if pos in pos_topic_words:
-                    data[party].topic_words.append(l)
-                if pos in pos_opinion_words:
-                    data[party].opinion_words.append(l)
-        else:
-            num_speech_without_party += 1
-    del context
-    f.close()
+                # find all words
+                word_elems = elem.findall('.//{}'.format(word_tag))
+                for w in word_elems:
+                    pos = w.find(pos_tag).attrib.get('class')
+                    l = w.find(lemma_tag).attrib.get('class')
+                    if pos in pos_topic_words:
+                        data[party].topic_words.append(l)
+                    if pos in pos_opinion_words:
+                        data[party].opinion_words.append(l)
+            else:
+                num_speech_without_party += 1
+        del context
+        f.close()
 
-    logger.debug('{}: # speech: {} - # speech without party: {}'.format(data_file, num_speech, num_speech_without_party))
-    if i % NUMBER == 0:
+        logger.debug('{}: # speech: {} - # speech without party: {}'.format(data_file, num_speech, num_speech_without_party))
+        if i % NUMBER == 0:
+            for p, persp in data.iteritems():
+                logger.info('{}: {}'.format(data_file, persp))
+
+        # write data to file
+        min_words = 100
         for p, persp in data.iteritems():
-            logger.info('{}: {}'.format(data_file, persp))
-
-    # write data to file
-    min_words = 100
-    for p, persp in data.iteritems():
-        if len(persp.topic_words) >= min_words and \
-           len(persp.opinion_words) >= min_words:
-            persp.write2file(out_dir, '{}.txt'.format(data_file))
+            if len(persp.topic_words) >= min_words and \
+               len(persp.opinion_words) >= min_words:
+                persp.write2file(dir_out, '{}.txt'.format(data_file))
