@@ -17,6 +17,7 @@ import glob
 import logging
 import time
 import pandas as pd
+import os
 
 
 logger = logging.getLogger(__name__)
@@ -241,26 +242,35 @@ class GibbsSampler():
             df = pd.DataFrame(data)
         return df
 
-    def topics_and_opinions_to_csv(self):
-        # TODO: allow user to specify the path where the files are saved
+    def topics_and_opinions_to_csv(self, directory=None):
         # TODO: fix case when self.topics and/or self.opinions do not exist
-        self.topics.to_csv('topics.csv', encoding='utf8')
-        self.document_topic_matrix.to_csv('document-topic.csv')
+
+        if directory:
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            path = directory
+        else:
+            path = ''
+
+        self.topics.to_csv(os.path.join(path, 'topics.csv'), encoding='utf8')
+        self.document_topic_matrix.to_csv(os.path.join(path,
+                                                       'document-topic.csv'))
         for p in range(self.numPerspectives):
             p_name = self.corpus.perspectives[p].name
             f_name = 'opinions_{}.csv'.format(p_name)
-            self.opinions[p].to_csv(f_name, encoding='utf8')
+            self.opinions[p].to_csv(os.path.join(path, f_name),
+                                    encoding='utf8')
 
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
-    #files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
-    files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
+    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
+    #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
 
     corpus = CPTCorpus.CPTCorpus(files)
-    corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
-    sampler = GibbsSampler(corpus, nTopics=100, nIter=1)
+    #corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
+    sampler = GibbsSampler(corpus, nTopics=100, nIter=100)
     sampler._initialize()
     sampler.run()
     sampler.print_topics_and_opinions()
