@@ -132,4 +132,5 @@ if __name__ == '__main__':
         for p, persp in data.iteritems():
             if len(persp.topic_words) >= min_words and \
                len(persp.opinion_words) >= min_words:
-                persp.write2file(dir_out, '{}.txt'.format(data_file))
+                fpath, fname = os.path.split(data_file)
+                persp.write2file(dir_out, '{}.txt'.format(fname))
