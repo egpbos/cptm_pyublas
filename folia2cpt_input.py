@@ -6,6 +6,8 @@ import codecs
 from fuzzywuzzy import process, fuzz
 import argparse
 import glob
+import datetime
+import pandas as pd
 
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,15 @@ if __name__ == '__main__':
                         'CPT corpus should be saved.')
     args = parser.parse_args()
 
+    coalitions = pd.read_csv('data/dutch_coalitions.csv', header=None,
+                             names=['Date', '1', '2', '3', '4'],
+                             index_col=0, parse_dates=True)
+    coalitions.sort_index(inplace=True)
+    print coalitions
+    i = coalitions.index.searchsorted('2010-02-28')
+    print 'i:', i
+    print coalitions.ix[coalitions.index[i]]
+
     dir_in = args.dir_in
     dir_out = args.dir_out
 
@@ -60,6 +71,7 @@ if __name__ == '__main__':
     lemma_tag = '{http://ilk.uvt.nl/FoLiA}lemma'
     speech_tag = '{http://www.politicalmashup.nl}speech'
     party_tag = '{http://www.politicalmashup.nl}party'
+    date_tag = '{http://purl.org/dc/elements/1.1/}date'
 
     pos_topic_words = ['N']
     pos_opinion_words = ['WW', 'ADJ', 'BW']
@@ -76,7 +88,8 @@ if __name__ == '__main__':
                                                len(data_files)))
 
         f = gzip.open(data_file)
-        context = etree.iterparse(f, events=('end',), tag=speech_tag,
+        context = etree.iterparse(f, events=('end',),
+                                  tag=(speech_tag, date_tag),
                                   huge_tree=True)
 
         data = {}
@@ -85,40 +98,59 @@ if __name__ == '__main__':
         num_speech = 0
         num_speech_without_party = 0
 
+        # Government vs. opposition
+        go_data = {}
+        go_data['g'] = Perspective('Government')
+        go_data['o'] = Perspective('Opposition')
+
         for event, elem in context:
-            num_speech += 1
-            party = elem.attrib.get(party_tag)
-            if party:
-                # prevent unwanted subdirectories to be created (happens when there
-                # is a / in the party name)
-                party = party.replace('/', '-')
+            if elem.tag == date_tag:
+                d = datetime.datetime.strptime(elem.text, "%Y-%m-%d").date()
+                i = coalitions.index.searchsorted(d)
+                c = coalitions.ix[coalitions.index[i-1]].tolist()
+                coalition_parties = [p for p in c if str(p) != 'nan']
+            if elem.tag == speech_tag:
+                num_speech += 1
+                party = elem.attrib.get(party_tag)
+                if party:
+                    # prevent unwanted subdirectories to be created (happens
+                    # when there is a / in the party name)
+                    party = party.replace('/', '-')
 
-                if not data.get(party):
-                    p, score1 = process.extractOne(party, known_parties)
-                    score2 = fuzz.ratio(party, p)
-                    logger.debug('Found match for "{}" to known party "{}" (scores: {}, {})'.format(party, p, score1, score2))
-                    if score1 >= 90 and score2 >= 90:
-                        # change party to known party
-                        logger.debug('Change party "{}" to known party "{}"'.format(party, p))
-                        party = p
-                        if not data.get(party):
+                    if not data.get(party):
+                        p, score1 = process.extractOne(party, known_parties)
+                        score2 = fuzz.ratio(party, p)
+                        logger.debug('Found match for "{}" to known party "{}" (scores: {}, {})'.format(party, p, score1, score2))
+                        if score1 >= 90 and score2 >= 90:
+                            # change party to known party
+                            logger.debug('Change party "{}" to known party "{}"'.format(party, p))
+                            party = p
+                            if not data.get(party):
+                                data[party] = Perspective(party)
+                        else:
+                            # add new Perspective
+                            logger.debug('Add new perspective for party "{}"'.format(party))
                             data[party] = Perspective(party)
-                    else:
-                        # add new Perspective
-                        logger.debug('Add new perspective for party "{}"'.format(party))
-                        data[party] = Perspective(party)
 
-                # find all words
-                word_elems = elem.findall('.//{}'.format(word_tag))
-                for w in word_elems:
-                    pos = w.find(pos_tag).attrib.get('class')
-                    l = w.find(lemma_tag).attrib.get('class')
-                    if pos in pos_topic_words:
-                        data[party].topic_words.append(l)
-                    if pos in pos_opinion_words:
-                        data[party].opinion_words.append(l)
-            else:
-                num_speech_without_party += 1
+                    if party in coalition_parties:
+                        go_perspective = 'g'
+                    else:
+                        go_perspective = 'o'
+                    logger.debug('date: {}, party: {}, government or opposition: {}'.format(str(d), party, go_perspective))
+
+                    # find all words
+                    word_elems = elem.findall('.//{}'.format(word_tag))
+                    for w in word_elems:
+                        pos = w.find(pos_tag).attrib.get('class')
+                        l = w.find(lemma_tag).attrib.get('class')
+                        if pos in pos_topic_words:
+                            data[party].topic_words.append(l)
+                            go_data[go_perspective].topic_words.append(l)
+                        if pos in pos_opinion_words:
+                            data[party].opinion_words.append(l)
+                            go_data[go_perspective].opinion_words.append(l)
+                else:
+                    num_speech_without_party += 1
         del context
         f.close()
 
@@ -133,4 +165,11 @@ if __name__ == '__main__':
             if len(persp.topic_words) >= min_words and \
                len(persp.opinion_words) >= min_words:
                 fpath, fname = os.path.split(data_file)
-                persp.write2file(dir_out, '{}.txt'.format(fname))
+                persp.write2file('{}parties'.format(dir_out),
+                                 '{}.txt'.format(fname))
+        for p, persp in go_data.iteritems():
+            if len(persp.topic_words) >= min_words and \
+               len(persp.opinion_words) >= min_words:
+                fpath, fname = os.path.split(data_file)
+                persp.write2file('{}gov_opp'.format(dir_out),
+                                 '{}.txt'.format(fname))
