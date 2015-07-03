@@ -77,7 +77,8 @@ if __name__ == '__main__':
     pos_opinion_words = ['WW', 'ADJ', 'BW']
 
     known_parties = ['CDA', 'D66', 'GPV', 'GroenLinks', 'OSF', 'PvdA', 'RPF',
-                     'SGP', 'SP', 'VVD']
+                     'SGP', 'SP', 'VVD', '50PLUS', 'AVP', 'ChristenUnie',
+                     'Leefbaar Nederland', 'LPF', 'PvdD', 'PVV']
 
     data_files = glob.glob('{}/*/data_folia/*.xml.gz'.format(dir_in))
 
