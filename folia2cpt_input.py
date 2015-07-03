@@ -165,11 +165,11 @@ if __name__ == '__main__':
             if len(persp.topic_words) >= min_words and \
                len(persp.opinion_words) >= min_words:
                 fpath, fname = os.path.split(data_file)
-                persp.write2file('{}parties'.format(dir_out),
+                persp.write2file('{}/parties'.format(dir_out),
                                  '{}.txt'.format(fname))
         for p, persp in go_data.iteritems():
             if len(persp.topic_words) >= min_words and \
                len(persp.opinion_words) >= min_words:
                 fpath, fname = os.path.split(data_file)
-                persp.write2file('{}gov_opp'.format(dir_out),
+                persp.write2file('{}/gov_opp'.format(dir_out),
                                  '{}.txt'.format(fname))
