@@ -31,7 +31,7 @@ class GibbsSampler():
         self.nTopics = nTopics
         self.alpha = alpha
         self.beta = beta
-        self.numPerspectives = len(self.corpus.perspectives)
+        self.nPerspectives = len(self.corpus.perspectives)
         self.beta_o = beta_o
         self.nIter = nIter
 
@@ -42,11 +42,13 @@ class GibbsSampler():
         self.VT = len(self.corpus.topicDictionary)
         self.VO = len(self.corpus.opinionDictionary)
         self.DT = len(self.corpus)
-        self.DO = [len(p.opinionCorpus) for p in self.corpus.perspectives]
+        self.DO = np.array([len(p.opinionCorpus)
+                            for p in self.corpus.perspectives], dtype=np.int)
         self.maxDocLengthT = max([p.topicCorpus.maxDocLength
                                  for p in self.corpus.perspectives])
-        self.maxDocLengthO = [p.opinionCorpus.maxDocLength
-                              for p in self.corpus.perspectives]
+        self.maxDocLengthO = np.array([p.opinionCorpus.maxDocLength
+                                       for p in self.corpus.perspectives],
+                                      dtype=np.int)
 
         # topics
         self.z = np.zeros((self.DT, self.maxDocLengthT), dtype=np.int)
@@ -56,12 +58,12 @@ class GibbsSampler():
         self.ntd = np.zeros(self.DT, dtype=np.float)
 
         # opinions
-        self.x = [np.zeros((self.DO[i], self.maxDocLengthO[i]), dtype=np.int)
-                  for i, p in enumerate(self.corpus.perspectives)]
-        self.nrs = [np.zeros((self.nTopics, self.VO), dtype=np.int)
-                    for p in self.corpus.perspectives]
-        self.ns = [np.zeros(self.nTopics, dtype=np.int)
-                   for p in self.corpus.perspectives]
+        self.x = np.array([np.zeros((self.DO[i], self.maxDocLengthO[i]),
+                                    dtype=np.int)
+                           for i, p in enumerate(self.corpus.perspectives)])
+        self.nrs = np.zeros((self.nPerspectives, self.nTopics, self.VO),
+                            dtype=np.int)
+        self.ns = np.zeros((self.nPerspectives, self.nTopics), dtype=np.int)
 
         # loop over the words in the corpus
         for d, persp, d_p, doc in self.corpus:
@@ -76,8 +78,8 @@ class GibbsSampler():
             for w_id, i in self.corpus.words_in_document(doc, 'opinion'):
                 opinion = np.random.randint(0, self.nTopics)
                 self.x[persp][d_p, i] = opinion
-                self.nrs[persp][opinion, w_id] += 1
-                self.ns[persp][opinion] += 1
+                self.nrs[persp, opinion, w_id] += 1
+                self.ns[persp, opinion] += 1
         logger.debug('Finished initialization.')
 
     @profile
@@ -96,14 +98,14 @@ class GibbsSampler():
         return p / np.sum(p)
 
     @profile
-    def p_x(self, p, d, w_id):
+    def p_x(self, persp, d, w_id):
         """Calculate (normalized) probabilities for p(w|x) (opinions).
 
         The probabilities are normalized, because that makes it easier to
         sample from them.
         """
-        f1 = (self.nrs[p][:, w_id]+self.beta_o) / \
-             (self.ns[p]+self.beta_o*self.VO)
+        f1 = (self.nrs[persp, :, w_id]+self.beta_o) / \
+             (self.ns[persp]+self.beta_o*self.VO)
         # The paper says f2 = nsd (the number of times topic s occurs in
         # document d) / Ntd (the number of topic words in document d).
         # 's' is used to refer to opinions. However, f2 makes more sense as the
@@ -146,11 +148,11 @@ class GibbsSampler():
         return f1/f2
 
     @profile
-    def phi_opinion(self, p):
+    def phi_opinion(self, persp):
         """Calculate phi based on the current word/topic assignments.
         """
-        f1 = self.nrs[p]+float(self.beta_o)
-        f2 = np.sum(self.nrs[p], axis=1, keepdims=True)+self.VO*self.beta_o
+        f1 = self.nrs[persp]+float(self.beta_o)
+        f2 = np.sum(self.nrs[persp], axis=1, keepdims=True)+self.VO*self.beta_o
         return f1/f2
 
     @profile
@@ -184,21 +186,21 @@ class GibbsSampler():
                 for w_id, i in self.corpus.words_in_document(doc, 'opinion'):
                     opinion = self.x[persp][d_p, i]
 
-                    self.nrs[persp][opinion, w_id] -= 1
-                    self.ns[persp][opinion] -= 1
+                    self.nrs[persp, opinion, w_id] -= 1
+                    self.ns[persp, opinion] -= 1
 
                     p = self.p_x(persp, d, w_id)
                     opinion = self.sample_from(p)
 
                     self.x[persp][d_p, i] = opinion
-                    self.nrs[persp][opinion, w_id] += 1
-                    self.ns[persp][opinion] += 1
+                    self.nrs[persp, opinion, w_id] += 1
+                    self.ns[persp, opinion] += 1
 
             # calculate theta and phi
             theta_topic[t] = self.theta_topic()
             phi_topic[t] = self.phi_topic()
 
-            for p in range(self.numPerspectives):
+            for p in range(self.nPerspectives):
                 phi_opinion[p][t] = self.phi_opinion(p)
 
             t2 = time.clock()
@@ -209,7 +211,7 @@ class GibbsSampler():
         self.opinions = [self.to_df(phi_opinion[p],
                                     self.corpus.opinionDictionary,
                                     self.VO)
-                         for p in range(self.numPerspectives)]
+                         for p in range(self.nPerspectives)]
         self.document_topic_matrix = self.to_df(theta_topic)
 
     def print_topics_and_opinions(self, top=10):
@@ -222,7 +224,7 @@ class GibbsSampler():
                   format(i, self.print_topic(self.topics.loc[:, i].copy(),
                                              top))
             print
-            for p in range(self.numPerspectives):
+            for p in range(self.nPerspectives):
                 print u'Opinion {}: {}'. \
                       format(self.corpus.perspectives[p].name,
                              self.print_topic(self.opinions[p].loc[:, i].copy(),
@@ -262,7 +264,7 @@ class GibbsSampler():
         self.topics.to_csv(os.path.join(path, 'topics.csv'), encoding='utf8')
         self.document_topic_matrix.to_csv(os.path.join(path,
                                                        'document-topic.csv'))
-        for p in range(self.numPerspectives):
+        for p in range(self.nPerspectives):
             p_name = self.corpus.perspectives[p].name
             f_name = 'opinions_{}.csv'.format(p_name)
             self.opinions[p].to_csv(os.path.join(path, f_name),
@@ -280,5 +282,5 @@ if __name__ == '__main__':
     sampler = GibbsSampler(corpus, nTopics=100, nIter=10)
     sampler._initialize()
     sampler.run()
-    sampler.print_topics_and_opinions()
-    sampler.topics_and_opinions_to_csv()
+    #sampler.print_topics_and_opinions()
+    #sampler.topics_and_opinions_to_csv()
