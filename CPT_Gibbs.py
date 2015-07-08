@@ -26,7 +26,7 @@ logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
 
 class GibbsSampler():
     def __init__(self, corpus, nTopics=10, alpha=0.02, beta=0.02, beta_o=0.02,
-                 nIter=2):
+                 nIter=2, out_dir=None):
         self.corpus = corpus
         self.nTopics = nTopics
         self.alpha = alpha
@@ -34,6 +34,11 @@ class GibbsSampler():
         self.nPerspectives = len(self.corpus.perspectives)
         self.beta_o = beta_o
         self.nIter = nIter
+
+        self.out_dir = out_dir
+        if self.out_dir:
+            if not os.path.exists(self.out_dir):
+                os.makedirs(out_dir)
 
         #self._initialize()
 
@@ -82,7 +87,6 @@ class GibbsSampler():
                 self.ns[persp, opinion] += 1
         logger.debug('Finished initialization.')
 
-    @profile
     def p_z(self, d, w_id):
         """Calculate (normalized) probabilities for p(w|z) (topics).
 
@@ -97,7 +101,6 @@ class GibbsSampler():
         p = f1*f2
         return p / np.sum(p)
 
-    @profile
     def p_x(self, persp, d, w_id):
         """Calculate (normalized) probabilities for p(w|x) (opinions).
 
@@ -118,7 +121,6 @@ class GibbsSampler():
         p = f1*f2
         return p / np.sum(p)
 
-    @profile
     def sample_from(self, p):
         """Sample (new) topic from multinomial distribution p.
         Returns a word's the topic index based on p_z.
@@ -131,7 +133,6 @@ class GibbsSampler():
         """
         return np.searchsorted(np.cumsum(p), np.random.rand())
 
-    @profile
     def theta_topic(self):
         """Calculate theta based on the current word/topic assignments.
         """
@@ -139,7 +140,6 @@ class GibbsSampler():
         f2 = np.sum(self.ndk, axis=1, keepdims=True)+self.nTopics*self.alpha
         return f1/f2
 
-    @profile
     def phi_topic(self):
         """Calculate phi based on the current word/topic assignments.
         """
@@ -147,7 +147,6 @@ class GibbsSampler():
         f2 = np.sum(self.nkw, axis=1, keepdims=True)+self.VT*self.beta
         return f1/f2
 
-    @profile
     def phi_opinion(self, persp):
         """Calculate phi based on the current word/topic assignments.
         """
@@ -155,13 +154,19 @@ class GibbsSampler():
         f2 = np.sum(self.nrs[persp], axis=1, keepdims=True)+self.VO*self.beta_o
         return f1/f2
 
-    @profile
     def run(self):
-        theta_topic = np.zeros((self.nIter, self.DT, self.nTopics))
-        phi_topic = np.zeros((self.nIter, self.nTopics, self.VT))
+        if not self.out_dir:
+            # store all parameter samples in memory
+            theta_topic = np.zeros((self.nIter, self.DT, self.nTopics))
+            phi_topic = np.zeros((self.nIter, self.nTopics, self.VT))
 
-        phi_opinion = [np.zeros((self.nIter, self.nTopics, self.VO))
-                       for p in self.corpus.perspectives]
+            phi_opinion = [np.zeros((self.nIter, self.nTopics, self.VO))
+                           for p in self.corpus.perspectives]
+        else:
+            # create directories where parameter samples are stored
+            self.parameter_dir = '{}/parameter_samples'.format(self.out_dir)
+            if not os.path.exists(self.parameter_dir):
+                os.makedirs(self.parameter_dir)
 
         for t in range(self.nIter):
             t1 = time.clock()
@@ -197,14 +202,34 @@ class GibbsSampler():
                     self.ns[persp, opinion] += 1
 
             # calculate theta and phi
-            theta_topic[t] = self.theta_topic()
-            phi_topic[t] = self.phi_topic()
+            if not self.out_dir:
+                theta_topic[t] = self.theta_topic()
+                phi_topic[t] = self.phi_topic()
 
-            for p in range(self.nPerspectives):
-                phi_opinion[p][t] = self.phi_opinion(p)
+                for p in range(self.nPerspectives):
+                    phi_opinion[p][t] = self.phi_opinion(p)
+            else:
+                pd.DataFrame(self.theta_topic()).to_csv('{}/theta_{:04d}.csv'.format(self.parameter_dir, t))
+                pd.DataFrame(self.phi_topic()).to_csv('{}/phi_topic_{:04d}.csv'.format(self.parameter_dir, t))
+                for p in range(self.nPerspectives):
+                    pd.DataFrame(self.phi_opinion(p)).to_csv('{}/phi_opinion_{}_{:04d}.csv'.format(self.parameter_dir, p, t))
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
+
+        if not self.out_dir:
+            # calculate means of parameters in memory
+            phi_topic = np.mean(phi_topic, axis=0)
+            theta_topic = np.mean(theta_topic, axis=0)
+            for p in range(self.nPerspectives):
+                phi_opinion[p] = np.mean(phi_opinion[p], axis=0)
+        else:
+            # load numbers from files
+            theta_topic = self.load_parameters('theta')
+            phi_topic = self.load_parameters('phi_topic')
+            phi_opinion = {}
+            for p in range(self.nPerspectives):
+                phi_opinion[p] = self.load_parameters('phi_opinion_{}'.format(p))
 
         self.topics = self.to_df(phi_topic, self.corpus.topicDictionary,
                                  self.VT)
@@ -213,6 +238,17 @@ class GibbsSampler():
                                     self.VO)
                          for p in range(self.nPerspectives)]
         self.document_topic_matrix = self.to_df(theta_topic)
+
+    def load_parameters(self, name):
+        data = None
+        for i in range(self.nIter):
+            fName = '{}/{}_{:04d}.csv'.format(self.parameter_dir, name, i)
+            ar = pd.read_csv(fName, index_col=0).as_matrix()
+            if data is None:
+                data = np.array([ar])
+            else:
+                data = np.append(data, np.array([ar]), axis=0)
+        return np.mean(data, axis=0)
 
     def print_topics_and_opinions(self, top=10):
         """Print topics and associated opinions.
@@ -239,8 +275,7 @@ class GibbsSampler():
              for word, p in series[0:top].iteritems()]
         return u' - '.join(t)
 
-    def to_df(self, matrix, dictionary=None, vocabulary=None):
-        data = np.mean(matrix, axis=0)
+    def to_df(self, data, dictionary=None, vocabulary=None):
         if dictionary and vocabulary:
             # phi (topics and opinions)
             words = [dictionary.get(i) for i in range(vocabulary)]
@@ -279,8 +314,18 @@ if __name__ == '__main__':
 
     corpus = CPTCorpus.CPTCorpus(files)
     corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
-    sampler = GibbsSampler(corpus, nTopics=100, nIter=10)
+    #sampler = GibbsSampler(corpus, nTopics=100, nIter=2, out_dir='/home/jvdzwaan/data/tmp/dilipad/test_parameters')
+    sampler = GibbsSampler(corpus, nTopics=100, nIter=2)
     sampler._initialize()
     sampler.run()
     #sampler.print_topics_and_opinions()
-    #sampler.topics_and_opinions_to_csv()
+    sampler.topics_and_opinions_to_csv()
+    #sampler.parameter_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters/parameter_samples/'
+    #theta_topic = sampler.load_parameters('theta')
+    #phi_topic = sampler.load_parameters('phi_topic')
+    #phi_opinion = {}
+    #for p in range(sampler.nPerspectives):
+    #        phi_opinion[p] = sampler.load_parameters('phi_opinion_{}'.format(p))
+    #print theta_topic
+    #print phi_topic
+   # print phi_opinion
