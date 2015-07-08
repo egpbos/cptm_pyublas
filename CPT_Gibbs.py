@@ -80,6 +80,7 @@ class GibbsSampler():
                 self.ns[persp][opinion] += 1
         logger.debug('Finished initialization.')
 
+    @profile
     def p_z(self, d, w_id):
         """Calculate (normalized) probabilities for p(w|z) (topics).
 
@@ -94,6 +95,7 @@ class GibbsSampler():
         p = f1*f2
         return p / np.sum(p)
 
+    @profile
     def p_x(self, p, d, w_id):
         """Calculate (normalized) probabilities for p(w|x) (opinions).
 
@@ -114,6 +116,7 @@ class GibbsSampler():
         p = f1*f2
         return p / np.sum(p)
 
+    @profile
     def sample_from(self, p):
         """Sample (new) topic from multinomial distribution p.
         Returns a word's the topic index based on p_z.
@@ -126,6 +129,7 @@ class GibbsSampler():
         """
         return np.searchsorted(np.cumsum(p), np.random.rand())
 
+    @profile
     def theta_topic(self):
         """Calculate theta based on the current word/topic assignments.
         """
@@ -133,6 +137,7 @@ class GibbsSampler():
         f2 = np.sum(self.ndk, axis=1, keepdims=True)+self.nTopics*self.alpha
         return f1/f2
 
+    @profile
     def phi_topic(self):
         """Calculate phi based on the current word/topic assignments.
         """
@@ -140,6 +145,7 @@ class GibbsSampler():
         f2 = np.sum(self.nkw, axis=1, keepdims=True)+self.VT*self.beta
         return f1/f2
 
+    @profile
     def phi_opinion(self, p):
         """Calculate phi based on the current word/topic assignments.
         """
@@ -147,6 +153,7 @@ class GibbsSampler():
         f2 = np.sum(self.nrs[p], axis=1, keepdims=True)+self.VO*self.beta_o
         return f1/f2
 
+    @profile
     def run(self):
         theta_topic = np.zeros((self.nIter, self.DT, self.nTopics))
         phi_topic = np.zeros((self.nIter, self.nTopics, self.VT))
@@ -265,12 +272,12 @@ class GibbsSampler():
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
-    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/*')
+    files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
     #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
 
     corpus = CPTCorpus.CPTCorpus(files)
-    #corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
-    sampler = GibbsSampler(corpus, nTopics=100, nIter=100)
+    corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
+    sampler = GibbsSampler(corpus, nTopics=100, nIter=10)
     sampler._initialize()
     sampler.run()
     sampler.print_topics_and_opinions()
