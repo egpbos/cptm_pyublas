@@ -286,13 +286,11 @@ class GibbsSampler():
             df = pd.DataFrame(data)
         return df
 
-    def topics_and_opinions_to_csv(self, directory=None):
+    def topics_and_opinions_to_csv(self):
         # TODO: fix case when self.topics and/or self.opinions do not exist
 
-        if directory:
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            path = directory
+        if self.out_dir:
+            path = self.out_dir
         else:
             path = ''
 
@@ -314,8 +312,8 @@ if __name__ == '__main__':
 
     corpus = CPTCorpus.CPTCorpus(files)
     corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
-    #sampler = GibbsSampler(corpus, nTopics=100, nIter=2, out_dir='/home/jvdzwaan/data/tmp/dilipad/test_parameters')
-    sampler = GibbsSampler(corpus, nTopics=100, nIter=2)
+    sampler = GibbsSampler(corpus, nTopics=100, nIter=2, out_dir='/home/jvdzwaan/data/tmp/dilipad/test_parameters')
+    #sampler = GibbsSampler(corpus, nTopics=100, nIter=2)
     sampler._initialize()
     sampler.run()
     #sampler.print_topics_and_opinions()
