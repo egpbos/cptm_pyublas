@@ -19,6 +19,8 @@ import time
 import pandas as pd
 import os
 
+from gibbs_inner import gibbs_inner
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
@@ -172,34 +174,7 @@ class GibbsSampler():
             t1 = time.clock()
             logger.debug('Iteration {} of {}'.format(t+1, self.nIter))
 
-            for d, persp, d_p, doc in self.corpus:
-                for w_id, i in self.corpus.words_in_document(doc, 'topic'):
-                    topic = self.z[d, i]
-
-                    self.ndk[d, topic] -= 1
-                    self.nkw[topic, w_id] -= 1
-                    self.nk[topic] -= 1
-
-                    p = self.p_z(d, w_id)
-                    topic = self.sample_from(p)
-
-                    self.z[d, i] = topic
-                    self.ndk[d, topic] += 1
-                    self.nkw[topic, w_id] += 1
-                    self.nk[topic] += 1
-
-                for w_id, i in self.corpus.words_in_document(doc, 'opinion'):
-                    opinion = self.x[persp][d_p, i]
-
-                    self.nrs[persp, opinion, w_id] -= 1
-                    self.ns[persp, opinion] -= 1
-
-                    p = self.p_x(persp, d, w_id)
-                    opinion = self.sample_from(p)
-
-                    self.x[persp][d_p, i] = opinion
-                    self.nrs[persp, opinion, w_id] += 1
-                    self.ns[persp, opinion] += 1
+            gibbs_inner(self)
 
             # calculate theta and phi
             if not self.out_dir:
