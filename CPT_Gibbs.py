@@ -89,20 +89,6 @@ class GibbsSampler():
                 self.ns[persp, opinion] += 1
         logger.debug('Finished initialization.')
 
-    def p_z(self, d, w_id):
-        """Calculate (normalized) probabilities for p(w|z) (topics).
-
-        The probabilities are normalized, because that makes it easier to
-        sample from them.
-        """
-        f1 = (self.ndk[d]+self.alpha) / \
-             (np.sum(self.ndk[d])+self.nTopics*self.alpha)
-        f2 = (self.nkw[:, w_id]+self.beta) / \
-             (self.nk+self.beta*self.VT)
-
-        p = f1*f2
-        return p / np.sum(p)
-
     def p_x(self, persp, d, w_id):
         """Calculate (normalized) probabilities for p(w|x) (opinions).
 
