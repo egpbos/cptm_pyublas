@@ -1,3 +1,6 @@
 *exvim*
 *.pyc
 *.lprof
+build/*
+*.c
+*.so

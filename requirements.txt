@@ -4,3 +4,4 @@ gensim
 pandas
 python-Levenshtein
 fuzzywuzzy
+cython
