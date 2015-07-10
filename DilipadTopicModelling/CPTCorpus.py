@@ -56,7 +56,7 @@ class CPTCorpus():
                 doc['topic'] = self.topicDictionary.doc2bow(doc['topic'])
                 doc['opinion'] = self.opinionDictionary.doc2bow(doc['opinion'])
 
-                yield doc_id_global, i, doc_id_perspective, doc
+                yield doc_id_global, i, p.name, doc_id_perspective, doc
 
                 doc_id_global += 1
                 doc_id_perspective += 1
@@ -71,7 +71,7 @@ class CPTCorpus():
         self.opinion_tf = Counter()
         self.opinion_df = Counter()
 
-        for doc_id_global, i, doc_id_perspective, doc in self:
+        for doc_id_global, i, p_name, doc_id_perspective, doc in self:
             doc_words_topic = set()
             for w_id, freq in doc['topic']:
                 self.topic_tf[w_id] += freq
@@ -192,6 +192,7 @@ class PerspectiveCorpus(gensim.corpora.TextCorpus):
     def __init__(self, input, lineNumber=0):
         self.lineNumber = lineNumber
         self.maxDocLength = 0
+        input.sort()
         super(PerspectiveCorpus, self).__init__(input)
 
     def get_texts(self):
@@ -220,6 +221,7 @@ if __name__ == '__main__':
 
     corpus = CPTCorpus(files)
     corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
+    print corpus.topicDictionary.get(0)
     #print len(corpus)
     #print corpus.dictionary
     #for doc in corpus:
