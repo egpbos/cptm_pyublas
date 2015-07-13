@@ -19,7 +19,7 @@ def gibbs_inner(self):
 
     cdef double alpha = self.alpha, beta = self.beta
 
-    for d, persp, persp_name, d_p, doc in self.corpus:
+    for d, persp, d_p, doc in self.corpus:
         for w_id, i in self.corpus.words_in_document(doc, 'topic'):
             topic = z[d, i]
 

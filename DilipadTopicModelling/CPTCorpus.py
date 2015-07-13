@@ -25,6 +25,7 @@ class CPTCorpus():
     def __init__(self, input):
         logger.info('initialize CPT Corpus with {} perspectives'
                     .format(len(input)))
+        input.sort()
         self.perspectives = [Perspective(glob.glob('{}/*.txt'.format(d)), d)
                              for d in input]
 
@@ -56,7 +57,7 @@ class CPTCorpus():
                 doc['topic'] = self.topicDictionary.doc2bow(doc['topic'])
                 doc['opinion'] = self.opinionDictionary.doc2bow(doc['opinion'])
 
-                yield doc_id_global, i, p.name, doc_id_perspective, doc
+                yield doc_id_global, i, doc_id_perspective, doc
 
                 doc_id_global += 1
                 doc_id_perspective += 1
@@ -71,7 +72,7 @@ class CPTCorpus():
         self.opinion_tf = Counter()
         self.opinion_df = Counter()
 
-        for doc_id_global, i, p_name, doc_id_perspective, doc in self:
+        for doc_id_global, i, doc_id_perspective, doc in self:
             doc_words_topic = set()
             for w_id, freq in doc['topic']:
                 self.topic_tf[w_id] += freq

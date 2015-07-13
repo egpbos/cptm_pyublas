@@ -73,7 +73,7 @@ class GibbsSampler():
         self.ns = np.zeros((self.nPerspectives, self.nTopics), dtype=np.int)
 
         # loop over the words in the corpus
-        for d, persp, persp_name, d_p, doc in self.corpus:
+        for d, persp, d_p, doc in self.corpus:
             for w_id, i in self.corpus.words_in_document(doc, 'topic'):
                 topic = np.random.randint(0, self.nTopics)
                 self.z[d, i] = topic

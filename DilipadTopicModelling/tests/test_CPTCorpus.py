@@ -34,21 +34,23 @@ def test_perspective_directories_exist():
 
 def test_iterate_over_topic_words():
     """Test iteration over topic words."""
-    for d, persp, p_name, d_p, doc in corpus:
+    for d, persp, d_p, doc in corpus:
         count_words = Counter()
         for w_id, i in corpus.words_in_document(doc, 'topic'):
             word = str(corpus.topicDictionary.get(w_id))
             count_words[word] += 1
+        p_name = corpus.perspectives[persp].name
         yield equal_obj, documents[p_name][d_p]['topic'], count_words
 
 
 def test_iterate_over_opinion_words():
     """Test iteration over opinion words."""
-    for d, persp, p_name, d_p, doc in corpus:
+    for d, persp, d_p, doc in corpus:
         count_words = Counter()
         for w_id, i in corpus.words_in_document(doc, 'opinion'):
             word = str(corpus.opinionDictionary.get(w_id))
             count_words[word] += 1
+        p_name = corpus.perspectives[persp].name
         yield equal_obj, documents[p_name][d_p]['opinion'], count_words
 
 
