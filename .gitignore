@@ -1,3 +1,5 @@
 *exvim*
 *.pyc
 *.lprof
+gibbs_inner.*
+!gibbs_inner.pyx
