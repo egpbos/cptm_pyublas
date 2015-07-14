@@ -134,6 +134,10 @@ class GibbsSampler():
             if not os.path.exists(self.parameter_dir):
                 os.makedirs(self.parameter_dir)
 
+        # variable to store nk for each iteration
+        # nk is used for Contrastive Opinion Modeling
+        self.nks = np.zeros((self.nIter, self.nTopics), dtype=np.int)
+
         for t in range(self.nIter):
             t1 = time.clock()
             logger.debug('Iteration {} of {}'.format(t+1, self.nIter))
@@ -152,6 +156,10 @@ class GibbsSampler():
                 pd.DataFrame(self.phi_topic()).to_csv('{}/phi_topic_{:04d}.csv'.format(self.parameter_dir, t))
                 for p in range(self.nPerspectives):
                     pd.DataFrame(self.phi_opinion(p)).to_csv('{}/phi_opinion_{}_{:04d}.csv'.format(self.parameter_dir, p, t))
+
+                # save nk (for Contrastive Opinion Mining)
+                self.nks[t] = np.copy(self.nk)
+                pd.DataFrame(self.nks).to_csv(os.path.join(self.parameter_dir, 'nks.csv'))
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
