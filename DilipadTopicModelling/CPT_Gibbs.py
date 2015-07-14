@@ -41,6 +41,9 @@ class GibbsSampler():
         if self.out_dir:
             if not os.path.exists(self.out_dir):
                 os.makedirs(out_dir)
+        self.parameter_dir = '{}/parameter_samples'.format(self.out_dir)
+        if not os.path.exists(self.parameter_dir):
+            os.makedirs(self.parameter_dir)
 
         #self._initialize()
 
@@ -128,11 +131,6 @@ class GibbsSampler():
 
             phi_opinion = [np.zeros((self.nIter, self.nTopics, self.VO))
                            for p in self.corpus.perspectives]
-        else:
-            # create directories where parameter samples are stored
-            self.parameter_dir = '{}/parameter_samples'.format(self.out_dir)
-            if not os.path.exists(self.parameter_dir):
-                os.makedirs(self.parameter_dir)
 
         # variable to store nk for each iteration
         # nk is used for Contrastive Opinion Modeling
@@ -217,9 +215,10 @@ class GibbsSampler():
 
     def print_topic(self, series, top=10):
         """Prints the top 10 words in the topic/opinion on a single line."""
-        series.sort(ascending=False)
+        s = series.copy()
+        s.sort(ascending=False)
         t = [u'{} ({:.4f})'.format(word, p)
-             for word, p in series[0:top].iteritems()]
+             for word, p in s[0:top].iteritems()]
         return u' - '.join(t)
 
     def to_df(self, data, dictionary=None, vocabulary=None):
@@ -250,6 +249,52 @@ class GibbsSampler():
             self.opinions[p].to_csv(os.path.join(path, f_name),
                                     encoding='utf8')
 
+    def contrastive_opinions(self, query):
+        """Returns a DataFrame containing contrastive opinions for the query.
+
+        Implements contrastive opinion modeling as specified in [Fang et al.,
+        2012] equation 1. The resulting probability distributions over words
+        are normalized, in order to facilitate mutual comparisons.
+
+        Example usage:
+            co = sampler.contrastive_opinions('mishandeling')
+            print sampler.print_topic(co[0])
+
+        Parameters:
+            query : str
+            The word contrastive opinions should be calculated for.
+
+        Returns:
+            pandas DataFrame
+            The index of the DataFrame are the topic words and the columns
+            represent the perspectives.
+        """
+        # TODO: create functions to access the filenames of the different parameters
+        # TODO: allow the user to specify index or range of the parameters to use
+        fName = '{}/{}_{:04d}.csv'.format(self.parameter_dir, 'phi_topic', (self.nIter-1))
+        phi_topic = pd.read_csv(fName, index_col=0).values
+
+        self.nks = pd.read_csv(os.path.join(self.parameter_dir, 'nks.csv'), index_col=0).values
+
+        # TODO: fix case when word not in topicDictionary
+        query_word_id = self.corpus.topicDictionary.doc2bow([query])[0][0]
+        print query_word_id
+
+        # TODO: create separate functions that create the words lists
+        words = [self.corpus.opinionDictionary.get(i) for i in range(self.VO)]
+        result = pd.DataFrame(np.zeros((self.VO, self.nPerspectives)), index=words)
+
+        for p in range(self.nPerspectives):
+            fName = '{}/{}_{}_{:04d}.csv'.format(self.parameter_dir, 'phi_opinion', p, (self.nIter-1))
+            phi_opinion = pd.read_csv(fName, index_col=0).values
+
+            c_opinion = phi_opinion.transpose() * phi_topic[:, query_word_id] * self.nks[-1]
+            c_opinion = np.sum(c_opinion, axis=1)
+            c_opinion /= np.sum(c_opinion)
+
+            result[p] = pd.Series(c_opinion, index=words)
+
+        return result
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
@@ -262,9 +307,13 @@ if __name__ == '__main__':
     sampler = GibbsSampler(corpus, nTopics=100, nIter=2, out_dir='/home/jvdzwaan/data/tmp/dilipad/test_parameters')
     #sampler = GibbsSampler(corpus, nTopics=100, nIter=2)
     sampler._initialize()
-    sampler.run()
+    #sampler.run()
     #sampler.print_topics_and_opinions()
-    sampler.topics_and_opinions_to_csv()
+    #sampler.topics_and_opinions_to_csv()
+    co = sampler.contrastive_opinions('mishandeling')
+    #print co
+    print sampler.print_topic(co[0])
+    print sampler.print_topic(co[1])
     #sampler.parameter_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters/parameter_samples/'
     #theta_topic = sampler.load_parameters('theta')
     #phi_topic = sampler.load_parameters('phi_topic')
