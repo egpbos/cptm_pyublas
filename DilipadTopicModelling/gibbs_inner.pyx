@@ -52,7 +52,7 @@ def gibbs_inner(self):
 @cython.boundscheck(False)
 @cython.cdivision(True)
 @cython.wraparound(False)
-cdef p_z(np.ndarray[long, ndim=1, mode='c'] ndk_d,
+cpdef p_z(np.ndarray[long, ndim=1, mode='c'] ndk_d,
          np.ndarray[long, ndim=1] nkw_w_id,
          np.ndarray[long, ndim=1, mode='c'] nk,
          double alpha, double beta, long nTopics, long VT):

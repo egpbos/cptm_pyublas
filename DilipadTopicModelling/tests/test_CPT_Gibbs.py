@@ -28,12 +28,12 @@ def test_p_z():
     ndk = random.randint(1000, size=(DT, nTopics))
     nkw = random.randint(5000, size=(nTopics, VT))
     nk = random.randint(5000, size=(nTopics))
-    ntd = np.sum(nkw, axis=0)
+    #ntd = np.sum(nkw, axis=0)
 
     for w_id in range(VT):
         for d in range(DT):
             pz1 = p_z_reference(d, w_id, alpha, beta, nTopics, VT, ndk, nkw, nk)
-            pz2 = p_z(d, w_id, alpha, beta, nTopics, VT, ndk, nkw, nk, ntd)
+            pz2 = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, nTopics, VT)
 
             yield almost_equal, pz1, pz2
 
