@@ -1,5 +1,5 @@
 import numpy as np
-from numpy import random
+from numpy import random, zeros
 from numpy.testing import assert_array_almost_equal
 from DilipadTopicModelling.gibbs_inner import p_z, p_x
 
@@ -18,6 +18,8 @@ def setup():
     global nrs
     global ns
 
+    global p
+
     VO = 10
     VT = 10
     D = 10
@@ -30,6 +32,8 @@ def setup():
     ntd = np.sum(nkw, axis=0)
     nrs = random.randint(5000, size=(nPerspectives, nTopics, VO))
     ns = random.randint(5000, size=(nPerspectives, nTopics))
+
+    p = zeros(nTopics)
 
 
 def p_z_reference(d, w_id, alpha, beta, nTopics, VT, ndk, nkw, nk):
@@ -74,7 +78,7 @@ def test_p_z():
     for w_id in range(VT):
         for d in range(D):
             pz1 = p_z_reference(d, w_id, alpha, beta, nTopics, VT, ndk, nkw, nk)
-            pz2 = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, VT)
+            pz2 = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, VT, p)
 
             yield almost_equal, pz1, pz2
 
@@ -85,7 +89,7 @@ def test_p_x():
         for w_id in range(VO):
             for d in range(D):
                 p1 = p_x_reference(persp, d, w_id, beta, VO, nrs, ns, ndk, ntd)
-                p2 = p_x(nrs[persp, :, w_id], ns[persp], ndk[d], ntd[d], beta, VO)
+                p2 = p_x(nrs[persp, :, w_id], ns[persp], ndk[d], ntd[d], beta, VO, p)
 
                 yield almost_equal, p1, p2
 

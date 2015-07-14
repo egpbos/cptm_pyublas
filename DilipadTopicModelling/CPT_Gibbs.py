@@ -49,13 +49,12 @@ class GibbsSampler():
         self.VT = len(self.corpus.topicDictionary)
         self.VO = len(self.corpus.opinionDictionary)
         self.DT = len(self.corpus)
-        self.DO = np.array([len(p.opinionCorpus)
-                            for p in self.corpus.perspectives], dtype=np.int)
+        self.DO = max([len(p.opinionCorpus)
+                       for p in self.corpus.perspectives])
         self.maxDocLengthT = max([p.topicCorpus.maxDocLength
                                  for p in self.corpus.perspectives])
-        self.maxDocLengthO = np.array([p.opinionCorpus.maxDocLength
-                                       for p in self.corpus.perspectives],
-                                      dtype=np.int)
+        self.maxDocLengthO = max([p.opinionCorpus.maxDocLength
+                                  for p in self.corpus.perspectives])
 
         # topics
         self.z = np.zeros((self.DT, self.maxDocLengthT), dtype=np.int)
@@ -65,9 +64,8 @@ class GibbsSampler():
         self.ntd = np.zeros(self.DT, dtype=np.int)
 
         # opinions
-        self.x = np.array([np.zeros((self.DO[i], self.maxDocLengthO[i]),
-                                    dtype=np.int)
-                           for i, p in enumerate(self.corpus.perspectives)])
+        self.x = np.zeros((self.nPerspectives, self.DO, self.maxDocLengthO),
+                          dtype=np.int)
         self.nrs = np.zeros((self.nPerspectives, self.nTopics, self.VO),
                             dtype=np.int)
         self.ns = np.zeros((self.nPerspectives, self.nTopics), dtype=np.int)

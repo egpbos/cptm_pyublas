@@ -10,14 +10,17 @@ def gibbs_inner(self):
     cdef np.ndarray[long, ndim=2, mode='c'] ndk = self.ndk
     cdef np.ndarray[long, ndim=2, mode='c'] nkw = self.nkw
     cdef np.ndarray[long, ndim=1, mode='c'] nk = self.nk
+    cdef np.ndarray[long, ndim=3, mode='c'] x = self.x
     cdef np.ndarray[long, ndim=2, mode='c'] ns = self.ns
     cdef np.ndarray[long, ndim=3, mode='c'] nrs = self.nrs
     cdef np.ndarray[long, ndim=1, mode='c'] ntd = self.ntd
 
-    cdef Py_ssize_t d, w_id, i, persp
+    cdef Py_ssize_t d, w_id, i, persp, d_p
     cdef long topic, opinion, VT = self.VT, VO = self.VO
 
     cdef double alpha = self.alpha, beta = self.beta, beta_o = self.beta_o
+    cdef np.ndarray[double, ndim=1, mode='c'] p
+    p = np.empty(ndk.shape[1], dtype=np.double)
 
     for d, persp, d_p, doc in self.corpus:
         for w_id, i in self.corpus.words_in_document(doc, 'topic'):
@@ -27,7 +30,7 @@ def gibbs_inner(self):
             nkw[topic, w_id] -= 1
             nk[topic] -= 1
 
-            p = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, VT)
+            p = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, VT, p)
             topic = self.sample_from(p)
 
             z[d, i] = topic
@@ -36,15 +39,15 @@ def gibbs_inner(self):
             nk[topic] += 1
 
         for w_id, i in self.corpus.words_in_document(doc, 'opinion'):
-            opinion = self.x[persp][d_p, i]
+            opinion = x[persp, d_p, i]
 
             nrs[persp, opinion, w_id] -= 1
             ns[persp, opinion] -= 1
 
-            p = p_x(nrs[persp, :, w_id], ns[persp], ndk[d], ntd[d], beta_o, VO)
+            p = p_x(nrs[persp, :, w_id], ns[persp], ndk[d], ntd[d], beta_o, VO, p)
             opinion = self.sample_from(p)
 
-            self.x[persp][d_p, i] = opinion
+            x[persp, d_p, i] = opinion
             nrs[persp, opinion, w_id] += 1
             ns[persp, opinion] += 1
 
@@ -55,16 +58,17 @@ def gibbs_inner(self):
 cpdef p_z(np.ndarray[long, ndim=1, mode='c'] ndk_d,
          np.ndarray[long, ndim=1] nkw_w_id,
          np.ndarray[long, ndim=1, mode='c'] nk,
-         double alpha, double beta, long VT):
+         double alpha, double beta, long VT,
+         np.ndarray[double, ndim=1, mode='c'] p):
     """Calculate (normalized) probabilities for p(w|z) (topics).
 
     The probabilities are normalized, because that makes it easier to
     sample from them.
     """
-    cdef np.ndarray[double, ndim=1, mode='c'] p
+    #cdef np.ndarray[double, ndim=1, mode='c'] p
     
     # f1 = (ndk_d+alpha) / (np.sum(ndk_d) + nTopics*alpha)
-    p = np.empty(ndk_d.shape[0], dtype=np.double)
+    #p = np.empty(ndk_d.shape[0], dtype=np.double)
     cdef double total = 0
     for i in range(p.shape[0]):
         p[i] = ndk_d[i] + alpha
@@ -90,14 +94,15 @@ cpdef p_z(np.ndarray[long, ndim=1, mode='c'] ndk_d,
 cpdef p_x(np.ndarray[long, ndim=1] nrs_d_wid,
           np.ndarray[long, ndim=1, mode='c'] ns_persp,
           np.ndarray[long, ndim=1, mode='c'] ndk_d,
-          double ntd_d, double beta, long VO):
+          double ntd_d, double beta, long VO,
+          np.ndarray[double, ndim=1, mode='c'] p):
     """Calculate (normalized) probabilities for p(w|x) (opinions).
 
     The probabilities are normalized, because that makes it easier to
     sample from them.
     """
-    cdef np.ndarray[double, ndim=1, mode='c'] p
-    p = np.empty(ndk_d.shape[0], dtype=np.double)
+    #cdef np.ndarray[double, ndim=1, mode='c'] p
+    #p = np.empty(ndk_d.shape[0], dtype=np.double)
 
     # f1 = (nrs_d_wid+beta) / (ns_persp+beta*VO)
     # f2 = ndk_d/ntd_d
