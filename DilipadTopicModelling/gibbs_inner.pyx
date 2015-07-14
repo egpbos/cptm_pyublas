@@ -15,9 +15,9 @@ def gibbs_inner(self):
     cdef np.ndarray[long, ndim=1, mode='c'] ntd = self.ntd
 
     cdef Py_ssize_t d, w_id, i, persp
-    cdef long topic, opinion, nTopics = self.nTopics, VT = self.VT
+    cdef long topic, opinion, VT = self.VT, VO = self.VO
 
-    cdef double alpha = self.alpha, beta = self.beta
+    cdef double alpha = self.alpha, beta = self.beta, beta_o = self.beta_o
 
     for d, persp, d_p, doc in self.corpus:
         for w_id, i in self.corpus.words_in_document(doc, 'topic'):
@@ -27,7 +27,7 @@ def gibbs_inner(self):
             nkw[topic, w_id] -= 1
             nk[topic] -= 1
 
-            p = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, nTopics, VT)
+            p = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, VT)
             topic = self.sample_from(p)
 
             z[d, i] = topic
@@ -41,7 +41,7 @@ def gibbs_inner(self):
             nrs[persp, opinion, w_id] -= 1
             ns[persp, opinion] -= 1
 
-            p = self.p_x(persp, d, w_id)
+            p = p_x(nrs[persp, :, w_id], ns[persp], ndk[d], ntd[d], beta_o, VO)
             opinion = self.sample_from(p)
 
             self.x[persp][d_p, i] = opinion
@@ -55,14 +55,14 @@ def gibbs_inner(self):
 cpdef p_z(np.ndarray[long, ndim=1, mode='c'] ndk_d,
          np.ndarray[long, ndim=1] nkw_w_id,
          np.ndarray[long, ndim=1, mode='c'] nk,
-         double alpha, double beta, long nTopics, long VT):
+         double alpha, double beta, long VT):
     """Calculate (normalized) probabilities for p(w|z) (topics).
 
     The probabilities are normalized, because that makes it easier to
     sample from them.
     """
     cdef np.ndarray[double, ndim=1, mode='c'] p
-
+    
     # f1 = (ndk_d+alpha) / (np.sum(ndk_d) + nTopics*alpha)
     p = np.empty(ndk_d.shape[0], dtype=np.double)
     cdef double total = 0
@@ -70,7 +70,7 @@ cpdef p_z(np.ndarray[long, ndim=1, mode='c'] ndk_d,
         p[i] = ndk_d[i] + alpha
         total += ndk_d[i]
     for i in range(p.shape[0]):
-        p[i] /= (total + nTopics * alpha)
+        p[i] /= (total + p.shape[0] * alpha)
 
     # f2 = (nkw_w_id + beta) / (nk+beta*VT)
     total = 0
@@ -78,6 +78,42 @@ cpdef p_z(np.ndarray[long, ndim=1, mode='c'] ndk_d,
         p[i] *= (nkw_w_id[i] + beta) / (nk[i] + beta * VT)
         total += p[i]
     # p = (f1*f2) / np.sum(f1*f2)
+    for i in range(p.shape[0]):
+        p[i] /= total
+
+    return p
+
+
+@cython.boundscheck(False)
+@cython.cdivision(True)
+@cython.wraparound(False)
+cpdef p_x(np.ndarray[long, ndim=1] nrs_d_wid,
+          np.ndarray[long, ndim=1, mode='c'] ns_persp,
+          np.ndarray[long, ndim=1, mode='c'] ndk_d,
+          double ntd_d, double beta, long VO):
+    """Calculate (normalized) probabilities for p(w|x) (opinions).
+
+    The probabilities are normalized, because that makes it easier to
+    sample from them.
+    """
+    cdef np.ndarray[double, ndim=1, mode='c'] p
+    p = np.empty(ndk_d.shape[0], dtype=np.double)
+
+    # f1 = (nrs_d_wid+beta) / (ns_persp+beta*VO)
+    # f2 = ndk_d/ntd_d
+    # The paper says f2 = nsd (the number of times topic s occurs in
+    # document d) / Ntd (the number of topic words in document d).
+    # 's' is used to refer to opinions. However, f2 makes more sense as the
+    # fraction of topic words assigned to a topic.
+    # Also in test runs of the Gibbs sampler, the topics and opinions might
+    # have different indexes when the number of opinion words per document
+    # is used instead of the number of topic words.
+    # p = (f1*f2) / np.sum(f1*f2)
+    cdef double total = 0
+    for i in range(p.shape[0]):
+        p[i] = (nrs_d_wid[i] + beta) / (ns_persp[i] + beta * VO) * (ndk_d[i]/ntd_d)
+        total += p[i]
+
     for i in range(p.shape[0]):
         p[i] /= total
 

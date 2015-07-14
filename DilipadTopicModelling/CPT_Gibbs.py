@@ -89,26 +89,6 @@ class GibbsSampler():
                 self.ns[persp, opinion] += 1
         logger.debug('Finished initialization.')
 
-    def p_x(self, persp, d, w_id):
-        """Calculate (normalized) probabilities for p(w|x) (opinions).
-
-        The probabilities are normalized, because that makes it easier to
-        sample from them.
-        """
-        f1 = (self.nrs[persp, :, w_id]+self.beta_o) / \
-             (self.ns[persp]+self.beta_o*self.VO)
-        # The paper says f2 = nsd (the number of times topic s occurs in
-        # document d) / Ntd (the number of topic words in document d).
-        # 's' is used to refer to opinions. However, f2 makes more sense as the
-        # fraction of topic words assigned to a topic.
-        # Also in test runs of the Gibbs sampler, the topics and opinions might
-        # have different indexes when the number of opinion words per document
-        # is used instead of the number of topic words.
-        f2 = self.ndk[d]/self.ntd[d]
-
-        p = f1*f2
-        return p / np.sum(p)
-
     def sample_from(self, p):
         """Sample (new) topic from multinomial distribution p.
         Returns a word's the topic index based on p_z.
