@@ -27,8 +27,7 @@ def gibbs_inner(self):
             nkw[topic, w_id] -= 1
             nk[topic] -= 1
 
-            p = p_z(d, w_id, alpha, beta, nTopics, VT, ndk, nkw, nk, ntd)
-            #p = self.p_z(d, w_id)
+            p = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, nTopics, VT)
             topic = self.sample_from(p)
 
             z[d, i] = topic
@@ -49,36 +48,37 @@ def gibbs_inner(self):
             nrs[persp, opinion, w_id] += 1
             ns[persp, opinion] += 1
 
-cpdef p_z(Py_ssize_t d, Py_ssize_t w_id, double alpha, double beta,
-         long nTopics, long VT,
-         np.ndarray[long, ndim=2, mode='c'] ndk,
-         np.ndarray[long, ndim=2, mode='c'] nkw,
-         np.ndarray[long, ndim=1, mode='c'] nk,
-         np.ndarray[long, ndim=1, mode='c'] ntd):
-    cdef np.ndarray[np.double_t, ndim=1] p     
-    p = np.zeros(nTopics, dtype=np.double)
 
-    #cdef long sum_ndkd = 0
-    #for z in xrange(nTopics):
-    #    sum_ndkd += ndk[d, z]
-    for z in xrange(nTopics):
-        p[z] = (ndk[d, z]+alpha) / (ntd[d] + alpha * nTopics) * (nkw[z, w_id]+beta) / (nk[z]+beta*VT)
-        #print f1
-        #print f2
-        #p[z] = f1*f2
-    # normalize to obtain probabilities
-    cdef double p_z_sum  = 0
-    for z in xrange(nTopics):
-        p_z_sum += p[z]
-    
-    #solve conversion rounding error
-    #cdef double partial_sum = 0
-    for z in xrange(nTopics):
-        p[z] /= p_z_sum
-    #    partial_sum += p[z]
-    #    p[nTopics-1] = 1.0 - partial_sum
+@cython.boundscheck(False)
+@cython.cdivision(True)
+@cython.wraparound(False)
+cdef p_z(np.ndarray[long, ndim=1, mode='c'] ndk_d,
+         np.ndarray[long, ndim=1] nkw_w_id,
+         np.ndarray[long, ndim=1, mode='c'] nk,
+         double alpha, double beta, long nTopics, long VT):
+    """Calculate (normalized) probabilities for p(w|z) (topics).
+
+    The probabilities are normalized, because that makes it easier to
+    sample from them.
+    """
+    cdef np.ndarray[double, ndim=1, mode='c'] p
+
+    # f1 = (ndk_d+alpha) / (np.sum(ndk_d) + nTopics*alpha)
+    p = np.empty(ndk_d.shape[0], dtype=np.double)
+    cdef double total = 0
+    for i in range(p.shape[0]):
+        p[i] = ndk_d[i] + alpha
+        total += ndk_d[i]
+    for i in range(p.shape[0]):
+        p[i] /= (total + nTopics * alpha)
+
+    # f2 = (nkw_w_id + beta) / (nk+beta*VT)
+    total = 0
+    for i in range(p.shape[0]):
+        p[i] *= (nkw_w_id[i] + beta) / (nk[i] + beta * VT)
+        total += p[i]
+    # p = (f1*f2) / np.sum(f1*f2)
+    for i in range(p.shape[0]):
+        p[i] /= total
+
     return p
-#    f1 = (ndk[d]+alpha) / (np.sum(ndk[d])+nTopics*alpha)
-#    f2 = (nkw[:, w_id]+beta) / (nk+beta*VT)
-#    p = f1*f2
-#    return p / np.sum(p)

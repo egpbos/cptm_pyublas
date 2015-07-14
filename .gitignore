@@ -1,6 +1,7 @@
 *exvim*
+.project
 *.pyc
 *.lprof
 build/*
-*.c
-*.so
+gibbs_inner.*
+!gibbs_inner.pyx
