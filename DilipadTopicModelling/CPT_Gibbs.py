@@ -18,6 +18,7 @@ import logging
 import time
 import pandas as pd
 import os
+from scipy.stats import entropy
 
 from gibbs_inner import gibbs_inner
 
@@ -296,6 +297,33 @@ class GibbsSampler():
 
         return result
 
+    def jsd_opinions(self, co_df):
+        """Calculate Jensen-Shannon divergence between contrastive opinions.
+
+        Implements Jensen-Shannon divergence between contrastive opinions as
+        described in [Fang et al., 2012] section 3.2.
+
+        Example usage:
+            co = sampler.contrastive_opinions('mishandeling')
+            jsd =  sampler.jsd_opinions(co)
+
+        Parameter:
+            co_df : pandas DataFrame
+            A pandas DataFrame containing contrastive opinions (see
+            self.contrastive_opinions(query))
+
+        Returns:
+            float
+            The Jensen-Shannon divergence between the contrastive opinions.
+
+        """
+        co = co_df.values
+        result = np.zeros(self.nPerspectives, dtype=np.float)
+        p_avg = np.mean(co, axis=1)
+        for persp in range(self.nPerspectives):
+            result[persp] = entropy(co[:, persp], p_avg)
+        return np.mean(result)
+
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
@@ -314,6 +342,7 @@ if __name__ == '__main__':
     #print co
     print sampler.print_topic(co[0])
     print sampler.print_topic(co[1])
+    print 'Jensen-Shannon divergence:', sampler.jsd_opinions(co)
     #sampler.parameter_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters/parameter_samples/'
     #theta_topic = sampler.load_parameters('theta')
     #phi_topic = sampler.load_parameters('phi_topic')
