@@ -154,6 +154,21 @@ class CPTCorpus():
         dictionary.filter_tokens(bad_ids=remove_ids)
         logger.debug('removing {} tokens'.format(len(remove_ids)))
 
+    def topic_words(self):
+        """Return the list of topic words."""
+        return self._create_word_list(self.topicDictionary)
+
+    def opinion_words(self):
+        """Return the list of opinion words."""
+        return self._create_word_list(self.opinionDictionary)
+
+    def _create_word_list(self, dictionary):
+        """Return a list of all words in the dictionary.
+
+        The word list is ordered by word id.
+        """
+        return [dictionary.get(i) for i in range(len(dictionary))]
+
 
 class Perspective():
     """Class representing a perspective in cross perspective topic modeling.

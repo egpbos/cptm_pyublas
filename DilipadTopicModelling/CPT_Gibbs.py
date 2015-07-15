@@ -177,11 +177,9 @@ class GibbsSampler():
             for p in range(self.nPerspectives):
                 phi_opinion[p] = self.load_parameters('phi_opinion_{}'.format(p))
 
-        self.topics = self.to_df(phi_topic, self.corpus.topicDictionary,
-                                 self.VT)
+        self.topics = self.to_df(phi_topic, self.corpus.topic_words())
         self.opinions = [self.to_df(phi_opinion[p],
-                                    self.corpus.opinionDictionary,
-                                    self.VO)
+                                    self.corpus.opinion_words())
                          for p in range(self.nPerspectives)]
         self.document_topic_matrix = self.to_df(theta_topic)
 
@@ -222,15 +220,14 @@ class GibbsSampler():
              for word, p in s[0:top].iteritems()]
         return u' - '.join(t)
 
-    def to_df(self, data, dictionary=None, vocabulary=None):
-        if dictionary and vocabulary:
-            # phi (topics and opinions)
-            words = [dictionary.get(i) for i in range(vocabulary)]
-            df = pd.DataFrame(data, columns=words)
-            df = df.transpose()
-        else:
+    def to_df(self, data, words=None):
+        if not words:
             # theta (topic document matrix)
             df = pd.DataFrame(data)
+        else:
+            # phi (topics and opinions)
+            df = pd.DataFrame(data, columns=words)
+            df = df.transpose()
         return df
 
     def topics_and_opinions_to_csv(self):
@@ -281,9 +278,8 @@ class GibbsSampler():
         query_word_id = self.corpus.topicDictionary.doc2bow([query])[0][0]
         print query_word_id
 
-        # TODO: create separate functions that create the words lists
-        words = [self.corpus.opinionDictionary.get(i) for i in range(self.VO)]
-        result = pd.DataFrame(np.zeros((self.VO, self.nPerspectives)), index=words)
+        words = self.corpus.opinion_words()
+        result = pd.DataFrame(np.zeros((self.VO, self.nPerspectives)), words)
 
         for p in range(self.nPerspectives):
             fName = '{}/{}_{}_{:04d}.csv'.format(self.parameter_dir, 'phi_opinion', p, (self.nIter-1))
@@ -323,6 +319,7 @@ class GibbsSampler():
         for persp in range(self.nPerspectives):
             result[persp] = entropy(co[:, persp], p_avg)
         return np.mean(result)
+
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
