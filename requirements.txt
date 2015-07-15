@@ -1,5 +1,6 @@
 lxml
 numpy
+scipy
 gensim
 pandas
 python-Levenshtein
