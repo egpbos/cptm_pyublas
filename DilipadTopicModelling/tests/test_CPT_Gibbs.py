@@ -1,98 +1,73 @@
-import numpy as np
-from numpy import random, zeros
-from numpy.testing import assert_array_almost_equal
-from DilipadTopicModelling.gibbs_inner import p_z, p_x
+from nose.tools import assert_equal
+
+from .. import generateCPTCorpus
+from .. import CPTCorpus
+import shutil
+from DilipadTopicModelling.CPT_Gibbs import GibbsSampler
+from pandas import DataFrame
+from numpy.testing import assert_almost_equal
 
 
 def setup():
-    global VO
-    global VT
-    global D
-    global nPerspectives
-    global nTopics
-    global beta
+    global data_dir
+    global out_dir
+    global persp_dirs
+    global documents
+    global corpus
+    global sampler
 
-    global ndk
-    global nkw
-    global ntd
-    global nrs
-    global ns
-
-    global p
-
-    VO = 10
-    VT = 10
-    D = 10
-    nPerspectives = 4
-    nTopics = random.randint(50, 300)
-    beta = random.random()
-
-    ndk = random.randint(1000, size=(D, nTopics))
-    nkw = random.randint(5000, size=(nTopics, VT))
-    ntd = np.sum(nkw, axis=0)
-    nrs = random.randint(5000, size=(nPerspectives, nTopics, VO))
-    ns = random.randint(5000, size=(nPerspectives, nTopics))
-
-    p = zeros(nTopics)
+    data_dir = 'test_data/'
+    out_dir = 'test_output/'
+    persp_dirs = ['{}{}'.format(data_dir, p) for p in ('p0', 'p1')]
+    documents = generateCPTCorpus.generate_cpt_corpus(data_dir)
+    corpus = CPTCorpus.CPTCorpus(persp_dirs)
+    sampler = GibbsSampler(corpus, nTopics=3, nIter=2, out_dir=out_dir)
+    sampler._initialize()
+    sampler.run()
 
 
-def p_z_reference(d, w_id, alpha, beta, nTopics, VT, ndk, nkw, nk):
-    """Calculate (normalized) probabilities for p(w|z) (topics).
-
-    The probabilities are normalized, because that makes it easier to
-    sample from them.
-    """
-    f1 = (ndk[d]+alpha) / (np.sum(ndk[d])+nTopics*alpha)
-    f2 = (nkw[:, w_id]+beta) / (nk+beta*VT)
-
-    p = f1*f2
-    return p / np.sum(p)
+def teardown():
+    shutil.rmtree(data_dir)
+    shutil.rmtree(out_dir)
 
 
-def p_x_reference(persp, d, w_id, beta_o, VO, nrs, ns, ndk, ntd):
-        """Calculate (normalized) probabilities for p(w|x) (opinions).
+def test_jensen_shannon_divergence_self():
+    """Jensen-Shannon divergence of a vector and itself must be 0"""
+    v = [0.2, 0.2, 0.2, 0.2, 0.2]
+    df = DataFrame({'p0': v, 'p1': v})
 
-        The probabilities are normalized, because that makes it easier to
-        sample from them.
-        """
-        f1 = (nrs[persp, :, w_id]+beta_o) / (ns[persp]+beta_o*VO)
-        # The paper says f2 = nsd (the number of times topic s occurs in
-        # document d) / Ntd (the number of topic words in document d).
-        # 's' is used to refer to opinions. However, f2 makes more sense as the
-        # fraction of topic words assigned to a topic.
-        # Also in test runs of the Gibbs sampler, the topics and opinions might
-        # have different indexes when the number of opinion words per document
-        # is used instead of the number of topic words.
-        f2 = ndk[d]/(ntd[d]+0.0)
-
-        p = f1*f2
-        return p / np.sum(p)
+    assert_equal(0.0, sampler.jsd_opinions(df))
 
 
-def test_p_z():
-    """Compare output from reference p_z to cython p_z"""
-    alpha = random.random()
+def test_jensen_shannon_divergence_symmetric():
+    """Jensen-Shannon divergence is symmetric"""
+    v1 = [0.2, 0.2, 0.2, 0.2, 0.2]
+    v2 = [0.2, 0.2, 0.2, 0.3, 0.1]
+    df1 = DataFrame({'p0': v1, 'p1': v2})
+    df2 = DataFrame({'p0': v2, 'p1': v1})
 
-    nk = random.randint(5000, size=(nTopics))
-
-    for w_id in range(VT):
-        for d in range(D):
-            pz1 = p_z_reference(d, w_id, alpha, beta, nTopics, VT, ndk, nkw, nk)
-            pz2 = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, VT, p)
-
-            yield almost_equal, pz1, pz2
+    assert_equal(sampler.jsd_opinions(df1), sampler.jsd_opinions(df2))
 
 
-def test_p_x():
-    """Compare output from reference p_x to cython p_x"""
-    for persp in range(nPerspectives):
-        for w_id in range(VO):
-            for d in range(D):
-                p1 = p_x_reference(persp, d, w_id, beta, VO, nrs, ns, ndk, ntd)
-                p2 = p_x(nrs[persp, :, w_id], ns[persp], ndk[d], ntd[d], beta, VO, p)
+def test_jensen_shannon_divergence_known_value():
+    """Jensen-Shannon divergence of v1 and v2 == 0.01352883"""
+    v1 = [0.2, 0.2, 0.2, 0.2, 0.2]
+    v2 = [0.2, 0.2, 0.2, 0.3, 0.1]
+    df1 = DataFrame({'p0': v1, 'p1': v2})
 
-                yield almost_equal, p1, p2
+    assert_almost_equal(0.01352883, sampler.jsd_opinions(df1))
 
 
-def almost_equal(ar1, ar2):
-    assert_array_almost_equal(ar1, ar2)
+def test_contrastive_opinions_result_shape():
+    """Verify the shape of the output of contrastive_opinions"""
+    co = sampler.contrastive_opinions('carrot')
+    assert_equal(co.shape, (sampler.VO, sampler.nPerspectives))
+
+
+def test_contrastive_opinions_prob_distr():
+    """Verify that the sum of all columns == 1.0 (probability distribution)"""
+    co = sampler.contrastive_opinions('carrot')
+    s = co.sum(axis=0)
+
+    for v in s:
+        yield assert_almost_equal, v, 1.0
