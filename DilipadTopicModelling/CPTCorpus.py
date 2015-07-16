@@ -1,10 +1,11 @@
 """Class to access CPT corpus."""
 import logging
-import gensim
+from gensim import corpora
 import glob
 import codecs
 from itertools import izip
 from collections import Counter
+import os
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,9 @@ class CPTCorpus():
                                                prune_at=None)
             self.opinionDictionary.add_documents(p.opinionCorpus.get_texts(),
                                                  prune_at=None)
+
+        self.topic_dict_file_name = None
+        self.opinion_dict_file_name = None
 
     def words_in_document(self, doc, topic_or_opinion):
         """Iterator over the individual word positions in a document."""
@@ -169,6 +173,26 @@ class CPTCorpus():
         """
         return [dictionary.get(i) for i in range(len(dictionary))]
 
+    def save_dictionaries(self, directory=None):
+        if directory:
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+        else:
+            directory = ''
+
+        self.topic_dict_file_name = os.path.join(directory, 'topicDict.dict')
+        self.topicDictionary.save(self.topic_dict_file_name(directory))
+
+        self.opinion_dict_file_name = os.path.join(directory,
+                                                   'opinionDict.dict')
+        self.opinionDictionary.save(self.opinion_dict_file_name(directory))
+
+    def load_dictionaries(self, topic_dict=None, opinion_dict=None):
+        if topic_dict:
+            self.topicDictionary = corpora.Dictionary.load(topic_dict)
+        if opinion_dict:
+            self.opinionDictionary = corpora.Dictionary.load(opinion_dict)
+
 
 class Perspective():
     """Class representing a perspective in cross perspective topic modeling.
@@ -201,7 +225,7 @@ class Perspective():
         return len(self.input)
 
 
-class PerspectiveCorpus(gensim.corpora.TextCorpus):
+class PerspectiveCorpus(corpora.TextCorpus):
     """Wrapper for corpus representing a perspective.
     Used by Perspective class.
     """
@@ -238,26 +262,9 @@ if __name__ == '__main__':
     corpus = CPTCorpus(files)
     corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
     print corpus.topicDictionary.get(0)
-    #print len(corpus)
-    #print corpus.dictionary
-    #for doc in corpus:
-    #    print doc
-        #for w in doc:
-        #    print corpus.dictionary[w[0]]
-    #    print '----------'
-    #print len(corpus.dictionary)
-    #a = [sum([f for w, f in doc]) for doc in corpus]
-    #print len(a)
-    #print sorted(a)
-    #print max(a)
-
-    #print 'topic words'
-    #for k, v in corpus.topicDictionary.iteritems():
-    #    print k, v
-    #print '\nopinion words'
-    #for k, v in corpus.opinionDictionary.iteritems():
-    #    print k, v
-    #b = corpus.dictionary.keys()
-    #b.sort()
-    #print b
-    #print corpus.dictionary.get(0)
+    # TODO: waarom worden de dictionaries niet in de dir opgeslagen?
+    d = '/home/jvdzwaan/data/dilipad/dictionaries'
+    corpus.save_dictionaries(directory=d)
+    #corpus.save_dictionaries(None)
+    corpus.load_dictionaries(topic_dict=corpus.topic_dict_file_name(d),
+                             opinion_dict=corpus.opinion_dict_file_name(d))
