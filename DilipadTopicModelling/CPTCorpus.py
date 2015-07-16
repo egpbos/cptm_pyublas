@@ -22,17 +22,41 @@ class CPTCorpus():
             document in the perspective. A text file contains the topic words
             on the first line and the opinion words on the second line. Words
             are separated by spaces.
+        topicDict : str or gensim dictionary
+        opinionDict : str or gensim dictionary
     """
-    def __init__(self, input):
+    def __init__(self, input, topicDict=None, opinionDict=None):
         logger.info('initialize CPT Corpus with {} perspectives'
                     .format(len(input)))
         input.sort()
         self.perspectives = [Perspective(glob.glob('{}/*.txt'.format(d)), d)
                              for d in input]
 
-        # create dictionaries with all topic and opinion words (universal
-        # mappings that can be used with the corpora from different
-        # perspectives).
+        if isinstance(topicDict, str):
+            self.topic_dict_file_name = topicDict
+            self.load_dictionaries(topicDict=topicDict)
+        elif isinstance(topicDict, corpora.Dictionary):
+            self.topicDictionary = topicDict
+
+        if isinstance(opinionDict, str):
+            self.opinion_dict_file_name = opinionDict
+            self.load_dictionaries(opinionDict=opinionDict)
+        elif isinstance(opinionDict, corpora.Dictionary):
+            self.opinionDictionary = opinionDict
+
+        if not topicDict or not opinionDict:
+            self._create_corpus_wide_dictionaries()
+
+        self.topic_dict_file_name = None
+        self.opinion_dict_file_name = None
+
+    def _create_corpus_wide_dictionaries(self):
+        """Create dictionaries with all topic and opinion words.
+
+        The created dictionaries contain mappings that can be used with across
+        the corpora from different perspectives.
+        """
+        logger.info('creating corpus wide topic and opinion dictionaries')
         self.topicDictionary = self.perspectives[0].topicCorpus.dictionary
         self.opinionDictionary = self.perspectives[0].opinionCorpus.dictionary
         for p in self.perspectives[1:]:
@@ -40,9 +64,6 @@ class CPTCorpus():
                                                prune_at=None)
             self.opinionDictionary.add_documents(p.opinionCorpus.get_texts(),
                                                  prune_at=None)
-
-        self.topic_dict_file_name = None
-        self.opinion_dict_file_name = None
 
     def words_in_document(self, doc, topic_or_opinion):
         """Iterator over the individual word positions in a document."""
@@ -187,11 +208,11 @@ class CPTCorpus():
                                                    'opinionDict.dict')
         self.opinionDictionary.save(self.opinion_dict_file_name(directory))
 
-    def load_dictionaries(self, topic_dict=None, opinion_dict=None):
-        if topic_dict:
-            self.topicDictionary = corpora.Dictionary.load(topic_dict)
-        if opinion_dict:
-            self.opinionDictionary = corpora.Dictionary.load(opinion_dict)
+    def load_dictionaries(self, topicDict=None, opinionDict=None):
+        if topicDict:
+            self.topicDictionary = corpora.Dictionary.load(topicDict)
+        if opinionDict:
+            self.opinionDictionary = corpora.Dictionary.load(opinionDict)
 
 
 class Perspective():
@@ -260,11 +281,11 @@ if __name__ == '__main__':
     #print '\n'.join(files)
 
     corpus = CPTCorpus(files)
-    corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
-    print corpus.topicDictionary.get(0)
-    # TODO: waarom worden de dictionaries niet in de dir opgeslagen?
-    d = '/home/jvdzwaan/data/dilipad/dictionaries'
-    corpus.save_dictionaries(directory=d)
+    #corpus = CPTCorpus(files, topicDict='/home/jvdzwaan/data/dilipad/dictionaries/topicDict.dict',
+    #                   opinionDict='/home/jvdzwaan/data/dilipad/dictionaries/opinionDict.dict')
+    #corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
+    #d = '/home/jvdzwaan/data/dilipad/dictionaries'
+    #corpus.save_dictionaries(directory=d)
     #corpus.save_dictionaries(None)
-    corpus.load_dictionaries(topic_dict=corpus.topic_dict_file_name(d),
-                             opinion_dict=corpus.opinion_dict_file_name(d))
+    #corpus.load_dictionaries(topic_dict=corpus.topic_dict_file_name(d),
+    #                         opinion_dict=corpus.opinion_dict_file_name(d))
