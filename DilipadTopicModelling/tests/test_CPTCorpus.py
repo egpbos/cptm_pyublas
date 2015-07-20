@@ -93,3 +93,58 @@ def test_calculate_tf_and_df():
 
     yield equal_obj, opinion_tf, corpus.opinion_tf
     yield equal_obj, opinion_df, corpus.opinion_df
+
+
+def test_word_lists():
+    topicWords = ['sun', 'ice_cream', 'beach', 'vanilla', 'chocolate',
+                  'broccoli', 'carrot']
+    topicWords.sort()
+    tw = corpus.topic_words()
+    tw.sort()
+
+    yield assert_equal, topicWords, tw
+
+    opinionWords = ['warm', 'swimming', 'sunny', 'bad', 'good', 'cold']
+    opinionWords.sort()
+    ow = corpus.opinion_words()
+    ow.sort()
+
+    yield assert_equal, opinionWords, ow
+
+
+def test_no_testSet():
+    """CPTCorpus without testSplit has no test sets"""
+    for p in corpus.perspectives:
+        yield assert_equal, hasattr(p, 'testSet'), False
+
+
+def test_testSet():
+    """CPTCorpus with testSplit has test sets of particular length"""
+    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20)
+
+    yield assert_equal, len(corpus2), 8
+
+    for p in corpus2.perspectives:
+        yield assert_equal, hasattr(p, 'testSet'), True
+        yield assert_equal, len(p.trainSet), 4
+        yield assert_equal, len(p.testSet), 1
+
+
+def test_illigal_values_for_testSplit():
+    """No test set when value for testSplit parameter is illegal"""
+    values = [-1, 0, 100, 1000]
+    for v in values:
+        corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=v)
+        for p in corpus2.perspectives:
+            yield assert_equal, hasattr(p, 'testSet'), False
+
+
+def test_loop_over_testSet():
+    """Test loop over documents in testSet"""
+    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20)
+    for d, persp, d_p, doc in corpus2.testSet():
+        pass
+
+    yield assert_equal, d, 1
+    yield assert_equal, persp, len(corpus.perspectives)-1
+    yield assert_equal, d_p, 0

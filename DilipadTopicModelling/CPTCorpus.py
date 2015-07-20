@@ -6,6 +6,7 @@ import codecs
 from itertools import izip
 from collections import Counter
 import os
+import random
 
 
 logger = logging.getLogger(__name__)
@@ -24,12 +25,17 @@ class CPTCorpus():
             are separated by spaces.
         topicDict : str or gensim dictionary
         opinionDict : str or gensim dictionary
+        testSplit : int
+            Integer specifying the percentage of documents to be used as test
+            set (for calculating perplexity).
     """
-    def __init__(self, input, topicDict=None, opinionDict=None):
+    def __init__(self, input, topicDict=None, opinionDict=None,
+                 testSplit=None):
         logger.info('initialize CPT Corpus with {} perspectives'
                     .format(len(input)))
         input.sort()
-        self.perspectives = [Perspective(glob.glob('{}/*.txt'.format(d)), d)
+        self.perspectives = [Perspective(glob.glob('{}/*.txt'.format(d)), d,
+                                         testSplit)
                              for d in input]
 
         if isinstance(topicDict, str):
@@ -50,6 +56,8 @@ class CPTCorpus():
         self.topic_dict_file_name = None
         self.opinion_dict_file_name = None
 
+        self.testSplit = testSplit
+
     def _create_corpus_wide_dictionaries(self):
         """Create dictionaries with all topic and opinion words.
 
@@ -57,12 +65,14 @@ class CPTCorpus():
         the corpora from different perspectives.
         """
         logger.info('creating corpus wide topic and opinion dictionaries')
-        self.topicDictionary = self.perspectives[0].topicCorpus.dictionary
-        self.opinionDictionary = self.perspectives[0].opinionCorpus.dictionary
+        s = self.perspectives[0].trainSet
+        self.topicDictionary = s.topicCorpus.dictionary
+        self.opinionDictionary = s.opinionCorpus.dictionary
         for p in self.perspectives[1:]:
-            self.topicDictionary.add_documents(p.topicCorpus.get_texts(),
+            s = p.trainSet
+            self.topicDictionary.add_documents(s.topicCorpus.get_texts(),
                                                prune_at=None)
-            self.opinionDictionary.add_documents(p.opinionCorpus.get_texts(),
+            self.opinionDictionary.add_documents(s.opinionCorpus.get_texts(),
                                                  prune_at=None)
 
     def words_in_document(self, doc, topic_or_opinion):
@@ -75,8 +85,11 @@ class CPTCorpus():
 
     def __iter__(self):
         """Iterator over the documents in the corpus."""
+        return self._iterate([p.trainSet for p in self.perspectives])
+
+    def _iterate(self, documentSets):
         doc_id_global = 0
-        for i, p in enumerate(self.perspectives):
+        for i, p in enumerate(documentSets):
             doc_id_perspective = 0
             for doc in p:
                 doc['topic'] = self.topicDictionary.doc2bow(doc['topic'])
@@ -89,6 +102,9 @@ class CPTCorpus():
 
     def __len__(self):
         return sum([len(p) for p in self.perspectives])
+
+    def testSet(self):
+        return self._iterate([p.testSet for p in self.perspectives])
 
     def calculate_tf_and_df(self):
         self.topic_tf = Counter()
@@ -226,15 +242,43 @@ class Perspective():
             (.txt). A text file contains the topic words on the first line and
             opinion words on the second line.
     """
-    def __init__(self, input, directory):
+    def __init__(self, input, directory, testSplit=None):
         name = directory.rsplit('/', 1)[1]
         logger.info('initialize perspective "{}" (path: {} - {} documents)'
                     .format(name, directory, len(input)))
-        self.topicCorpus = PerspectiveCorpus(input, 0)
-        self.opinionCorpus = PerspectiveCorpus(input, 1)
-        self.input = input
         self.name = name
         self.directory = directory
+
+        if testSplit and (testSplit > 99 or testSplit < 1):
+            testSplit = None
+            logger.warn('illegal value for testSplit ({}); ' +
+                        'not creating test set'.format(testSplit))
+
+        if testSplit:
+            splitIndex = int(len(input)/100.0*testSplit)
+            logger.info('saving {} of {} documents for testing'.
+                        format(splitIndex, len(input)))
+            random.shuffle(input)
+            self.testFiles = input[:splitIndex]
+            input = input[splitIndex:]
+            self.testSet = Corpus(self.testFiles)
+
+        self.input = input
+        self.trainSet = Corpus(self.input)
+
+    def __len__(self):
+        return len(self.trainSet)
+
+
+class Corpus():
+    """Wrapper representing a Corpus of a perspective (train set or test set).
+    A Corpus consists of two partial corpora (PartialCorpus): one for topic
+    words and one for opinion words. This class is used by the Perspective
+    class.
+    """
+    def __init__(self, input):
+        self.topicCorpus = PartialCorpus(input, lineNumber=0)
+        self.opinionCorpus = PartialCorpus(input, lineNumber=1)
 
     def __iter__(self):
         # topic_words and opinion_words are lists of actual words
@@ -243,18 +287,20 @@ class Perspective():
             yield {'topic': topic_words, 'opinion': opinion_words}
 
     def __len__(self):
-        return len(self.input)
+        return len(self.topicCorpus)
 
 
-class PerspectiveCorpus(corpora.TextCorpus):
-    """Wrapper for corpus representing a perspective.
-    Used by Perspective class.
+class PartialCorpus(corpora.TextCorpus):
+    """Gensim TextCorpus containing either topic or opinion words.
+    Used by the Corpus class.
     """
     def __init__(self, input, lineNumber=0):
         self.lineNumber = lineNumber
         self.maxDocLength = 0
         input.sort()
-        super(PerspectiveCorpus, self).__init__(input)
+        super(PartialCorpus, self).__init__(input)
+
+        self.input = input
 
     def get_texts(self):
         for txt in self.input:
@@ -270,17 +316,22 @@ class PerspectiveCorpus(corpora.TextCorpus):
                 yield words
 
     def __len__(self):
-        return super(PerspectiveCorpus, self).__len__()
+        return len(self.input)
 
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
     #files = glob.glob('/home/jvdzwaan/data/dilipad/generated/p*')
-    files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
+    #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
+    files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
     files.sort()
     #print '\n'.join(files)
 
-    corpus = CPTCorpus(files)
+    corpus = CPTCorpus(files, testSplit=20)
+    #print len(corpus.perspectives[0].opinionCorpus)
+    #print len(corpus.perspectives[0].opinionTestCorpus)
+    for d in corpus.testSet():
+        print d
     #corpus = CPTCorpus(files, topicDict='/home/jvdzwaan/data/dilipad/dictionaries/topicDict.dict',
     #                   opinionDict='/home/jvdzwaan/data/dilipad/dictionaries/opinionDict.dict')
     #corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)

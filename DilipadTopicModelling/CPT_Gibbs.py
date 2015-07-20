@@ -53,11 +53,11 @@ class GibbsSampler():
         self.VT = len(self.corpus.topicDictionary)
         self.VO = len(self.corpus.opinionDictionary)
         self.DT = len(self.corpus)
-        self.DO = max([len(p.opinionCorpus)
+        self.DO = max([len(p.trainSet.opinionCorpus)
                        for p in self.corpus.perspectives])
-        self.maxDocLengthT = max([p.topicCorpus.maxDocLength
+        self.maxDocLengthT = max([p.trainSet.topicCorpus.maxDocLength
                                  for p in self.corpus.perspectives])
-        self.maxDocLengthO = max([p.opinionCorpus.maxDocLength
+        self.maxDocLengthO = max([p.trainSet.opinionCorpus.maxDocLength
                                   for p in self.corpus.perspectives])
 
         # topics
