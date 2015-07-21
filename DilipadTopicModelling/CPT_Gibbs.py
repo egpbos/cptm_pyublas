@@ -28,9 +28,11 @@ logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
 
 
 class GibbsSampler():
+    PARAMETER_DIR = '{}/parameter_samples'
     PHI_TOPIC = 'phi_topic'
     PHI_OPINION = 'phi_opinion_{}'
     THETA = 'theta'
+    NKS = 'nks'
 
     def __init__(self, corpus, nTopics=10, alpha=0.02, beta=0.02, beta_o=0.02,
                  nIter=2, out_dir=None):
@@ -46,9 +48,9 @@ class GibbsSampler():
         if self.out_dir:
             if not os.path.exists(self.out_dir):
                 os.makedirs(out_dir)
-        self.parameter_dir = '{}/parameter_samples'.format(self.out_dir)
-        if not os.path.exists(self.parameter_dir):
-            os.makedirs(self.parameter_dir)
+        parameter_dir = self.get_parameter_dir_name()
+        if not os.path.exists(parameter_dir):
+            os.makedirs(parameter_dir)
 
         #self._initialize()
 
@@ -155,14 +157,17 @@ class GibbsSampler():
                 for p in range(self.nPerspectives):
                     phi_opinion[p][t] = self.phi_opinion(p)
             else:
-                pd.DataFrame(self.theta_topic()).to_csv('{}/theta_{:04d}.csv'.format(self.parameter_dir, t))
-                pd.DataFrame(self.phi_topic()).to_csv('{}/phi_topic_{:04d}.csv'.format(self.parameter_dir, t))
+                pd.DataFrame(self.theta_topic()). \
+                    to_csv(self.get_theta_file_name(t))
+                pd.DataFrame(self.phi_topic()). \
+                    to_csv(self.get_phi_topic_file_name(t))
                 for p in range(self.nPerspectives):
-                    pd.DataFrame(self.phi_opinion(p)).to_csv('{}/phi_opinion_{}_{:04d}.csv'.format(self.parameter_dir, p, t))
+                    pd.DataFrame(self.phi_opinion(p)). \
+                        to_csv(self.get_phi_opinion_file_name(p, t))
 
                 # save nk (for Contrastive Opinion Mining)
                 self.nks[t] = np.copy(self.nk)
-                pd.DataFrame(self.nks).to_csv(os.path.join(self.parameter_dir, 'nks.csv'))
+                pd.DataFrame(self.nks).to_csv(self.get_nks_file_name())
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
@@ -175,11 +180,12 @@ class GibbsSampler():
                 phi_opinion[p] = np.mean(phi_opinion[p], axis=0)
         else:
             # load numbers from files
-            theta_topic = self.load_parameters('theta')
-            phi_topic = self.load_parameters('phi_topic')
+            theta_topic = self.load_parameters(self.THETA)
+            phi_topic = self.load_parameters(self.PHI_TOPIC)
             phi_opinion = {}
             for p in range(self.nPerspectives):
-                phi_opinion[p] = self.load_parameters('phi_opinion_{}'.format(p))
+                phi_opinion[p] = self.load_parameters(self.PHI_OPINION.
+                                                      format(p))
 
         self.topics = self.to_df(phi_topic, self.corpus.topic_words())
         self.opinions = [self.to_df(phi_opinion[p],
@@ -221,11 +227,15 @@ class GibbsSampler():
     def get_theta_file_name(self, number):
         return self.get_parameter_file_name(self.THETA, number)
 
+    def get_nks_file_name(self):
+        return '{}/{}.csv'.format(self.get_parameter_dir_name(), self.NKS)
+
     def get_parameter_file_name(self, name, number):
-        return '{}/{}_{:04d}.csv'.format(self.parameter_dir, name, number)
+        return '{}/{}_{:04d}.csv'.format(self.get_parameter_dir_name(),
+                                         name, number)
 
     def get_parameter_dir_name(self):
-        return '{}/parameter_samples'.format(self.out_dir)
+        return self.PARAMETER_DIR.format(self.out_dir)
 
     def print_topics_and_opinions(self, top=10):
         """Print topics and associated opinions.
@@ -300,12 +310,10 @@ class GibbsSampler():
             The index of the DataFrame are the topic words and the columns
             represent the perspectives.
         """
-        # TODO: create functions to access the filenames of the different parameters
         # TODO: allow the user to specify index or range of the parameters to use
-        fName = '{}/{}_{:04d}.csv'.format(self.parameter_dir, 'phi_topic', (self.nIter-1))
-        phi_topic = pd.read_csv(fName, index_col=0).values
+        phi_topic = self.load_parameters(self.PHI_TOPIC, index=self.nIter-1)
 
-        self.nks = pd.read_csv(os.path.join(self.parameter_dir, 'nks.csv'), index_col=0).values
+        self.nks = pd.read_csv(self.get_nks_file_name(), index_col=0).values
 
         # TODO: fix case when word not in topicDictionary
         query_word_id = self.corpus.topicDictionary.doc2bow([query])[0][0]
@@ -315,8 +323,8 @@ class GibbsSampler():
         result = pd.DataFrame(np.zeros((self.VO, self.nPerspectives)), words)
 
         for p in range(self.nPerspectives):
-            fName = '{}/{}_{}_{:04d}.csv'.format(self.parameter_dir, 'phi_opinion', p, (self.nIter-1))
-            phi_opinion = pd.read_csv(fName, index_col=0).values
+            phi_opinion = self.load_parameters(self.PHI_OPINION.format(p),
+                                               index=self.nIter-1)
 
             c_opinion = phi_opinion.transpose() * phi_topic[:, query_word_id] * self.nks[-1]
             c_opinion = np.sum(c_opinion, axis=1)
