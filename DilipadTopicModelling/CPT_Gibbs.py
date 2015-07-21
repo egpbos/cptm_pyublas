@@ -28,6 +28,10 @@ logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
 
 
 class GibbsSampler():
+    PHI_TOPIC = 'phi_topic'
+    PHI_OPINION = 'phi_opinion_{}'
+    THETA = 'theta'
+
     def __init__(self, corpus, nTopics=10, alpha=0.02, beta=0.02, beta_o=0.02,
                  nIter=2, out_dir=None):
         self.corpus = corpus
@@ -183,16 +187,45 @@ class GibbsSampler():
                          for p in range(self.nPerspectives)]
         self.document_topic_matrix = self.to_df(theta_topic)
 
-    def load_parameters(self, name):
+    def load_parameters(self, name, index=None, start=None, end=None):
+        if index < 0 or index > self.nIter:
+            index = None
+
+        if index:
+            return pd.read_csv(self.get_parameter_file_name(name, index),
+                               index_col=0).as_matrix()
+
+        if start < 0 or start > self.nIter or start > end:
+            start = 0
+
+        if end < 0 or end > self.nIter or end < start:
+            end = self.nIter
+
         data = None
-        for i in range(self.nIter):
-            fName = '{}/{}_{:04d}.csv'.format(self.parameter_dir, name, i)
-            ar = pd.read_csv(fName, index_col=0).as_matrix()
+        for i in range(start, end):
+            ar = pd.read_csv(self.get_parameter_file_name(name, i),
+                             index_col=0).as_matrix()
             if data is None:
                 data = np.array([ar])
             else:
                 data = np.append(data, np.array([ar]), axis=0)
         return np.mean(data, axis=0)
+
+    def get_phi_topic_file_name(self, number):
+        return self.get_parameter_file_name(self.PHI_TOPIC, number)
+
+    def get_phi_opinion_file_name(self, persp, number):
+        return self.get_parameter_file_name(self.PHI_OPINION.format(persp),
+                                            number)
+
+    def get_theta_file_name(self, number):
+        return self.get_parameter_file_name(self.THETA, number)
+
+    def get_parameter_file_name(self, name, number):
+        return '{}/{}_{:04d}.csv'.format(self.parameter_dir, name, number)
+
+    def get_parameter_dir_name(self):
+        return '{}/parameter_samples'.format(self.out_dir)
 
     def print_topics_and_opinions(self, top=10):
         """Print topics and associated opinions.

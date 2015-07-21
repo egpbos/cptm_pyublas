@@ -6,6 +6,7 @@ import shutil
 from DilipadTopicModelling.CPT_Gibbs import GibbsSampler
 from pandas import DataFrame
 from numpy.testing import assert_almost_equal
+import os.path
 
 
 def setup():
@@ -71,3 +72,44 @@ def test_contrastive_opinions_prob_distr():
 
     for v in s:
         yield assert_almost_equal, v, 1.0
+
+
+def test_get_parameter_dir_name():
+    """Test existence of parameter directory"""
+    dir_name = sampler.get_parameter_dir_name()
+
+    assert_equal(os.path.exists(dir_name), True)
+
+
+def test_get_phi_topic_file_name():
+    """Test existence of phi topic parameter files"""
+    for i in range(sampler.nIter):
+        file_name = sampler.get_phi_topic_file_name(i)
+        yield assert_equal, os.path.isfile(file_name), True
+
+
+def test_get_theta_file_name():
+    """Test existence of theta parameter files"""
+    for i in range(sampler.nIter):
+        file_name = sampler.get_theta_file_name(i)
+        yield assert_equal, os.path.isfile(file_name), True
+
+
+def test_get_phi_opinion_file_name():
+    """Test existence of phi opinion parameter files"""
+    for i in range(sampler.nIter):
+        for p, persp in enumerate(sampler.corpus.perspectives):
+            file_name = sampler.get_phi_opinion_file_name(p, i)
+            yield assert_equal, os.path.isfile(file_name), True
+
+
+def test_load_parameters_illegal_index():
+    mean = sampler.load_parameters(sampler.PHI_TOPIC)
+    values = [-1, sampler.nIter+5, 100000000]
+    for v in values:
+        result = sampler.load_parameters(sampler.PHI_TOPIC, index=v)
+        yield assert_almost_equal, result, mean
+
+# TODO: add test for illegal start values
+# TODO: add test for illegal end values
+        #self, name, index=None, start=None, end=None):
