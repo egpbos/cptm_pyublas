@@ -28,6 +28,12 @@ logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
 
 
 class GibbsSampler():
+    PARAMETER_DIR = '{}/parameter_samples'
+    PHI_TOPIC = 'phi_topic'
+    PHI_OPINION = 'phi_opinion_{}'
+    THETA = 'theta'
+    NKS = 'nks'
+
     def __init__(self, corpus, nTopics=10, alpha=0.02, beta=0.02, beta_o=0.02,
                  nIter=2, out_dir=None):
         self.corpus = corpus
@@ -42,23 +48,39 @@ class GibbsSampler():
         if self.out_dir:
             if not os.path.exists(self.out_dir):
                 os.makedirs(out_dir)
-        self.parameter_dir = '{}/parameter_samples'.format(self.out_dir)
-        if not os.path.exists(self.parameter_dir):
-            os.makedirs(self.parameter_dir)
+        parameter_dir = self.get_parameter_dir_name()
+        if not os.path.exists(parameter_dir):
+            os.makedirs(parameter_dir)
 
         #self._initialize()
 
-    def _initialize(self):
+    def _initialize(self, phi=None):
         """Initializes the Gibbs sampler."""
+
+        if not isinstance(phi, np.ndarray):
+            logger.debug('working with train set')
+            self.documents = self.corpus
+        else:
+            logger.debug('working with test set')
+            self.documents = self.corpus.testSet()
+
         self.VT = len(self.corpus.topicDictionary)
         self.VO = len(self.corpus.opinionDictionary)
-        self.DT = len(self.corpus)
-        self.DO = max([len(p.opinionCorpus)
+        self.DT = sum([len(p.corpus(phi).topicCorpus)
                        for p in self.corpus.perspectives])
-        self.maxDocLengthT = max([p.topicCorpus.maxDocLength
+        self.DO = max([len(p.corpus(phi).opinionCorpus)
+                       for p in self.corpus.perspectives])
+        self.maxDocLengthT = max([p.corpus(phi).topicCorpus.maxDocLength
                                  for p in self.corpus.perspectives])
-        self.maxDocLengthO = max([p.opinionCorpus.maxDocLength
+        self.maxDocLengthO = max([p.corpus(phi).opinionCorpus.maxDocLength
                                   for p in self.corpus.perspectives])
+
+        msg = '{} documents in the corpus (DT)'.format(self.DT)
+        logger.debug(msg)
+        msg = '{} documents in the biggest perspective (DO)'.format(self.DO)
+        logger.debug(msg)
+        msg = 'maximum document lengths found: {} (topic) {} (opinion)'
+        logger.debug(msg.format(self.maxDocLengthT, self.maxDocLengthO))
 
         # topics
         self.z = np.zeros((self.DT, self.maxDocLengthT), dtype=np.int)
@@ -75,9 +97,17 @@ class GibbsSampler():
         self.ns = np.zeros((self.nPerspectives, self.nTopics), dtype=np.int)
 
         # loop over the words in the corpus
-        for d, persp, d_p, doc in self.corpus:
+        for d, persp, d_p, doc in self.documents:
             for w_id, i in self.corpus.words_in_document(doc, 'topic'):
-                topic = np.random.randint(0, self.nTopics)
+                #print d, persp, d_p, w_id, i
+                if phi is None:
+                    topic = np.random.randint(0, self.nTopics)
+                else:
+                    p = phi[:, w_id] / np.sum(phi[:, w_id])
+                    topic = self.sample_from(p)
+                    #print len(phi_topic[:, w_id])
+                    #print np.sum(phi_topic[:, w_id])
+                #print topic
                 self.z[d, i] = topic
                 self.ndk[d, topic] += 1
                 self.nkw[topic, w_id] += 1
@@ -151,14 +181,17 @@ class GibbsSampler():
                 for p in range(self.nPerspectives):
                     phi_opinion[p][t] = self.phi_opinion(p)
             else:
-                pd.DataFrame(self.theta_topic()).to_csv('{}/theta_{:04d}.csv'.format(self.parameter_dir, t))
-                pd.DataFrame(self.phi_topic()).to_csv('{}/phi_topic_{:04d}.csv'.format(self.parameter_dir, t))
+                pd.DataFrame(self.theta_topic()). \
+                    to_csv(self.get_theta_file_name(t))
+                pd.DataFrame(self.phi_topic()). \
+                    to_csv(self.get_phi_topic_file_name(t))
                 for p in range(self.nPerspectives):
-                    pd.DataFrame(self.phi_opinion(p)).to_csv('{}/phi_opinion_{}_{:04d}.csv'.format(self.parameter_dir, p, t))
+                    pd.DataFrame(self.phi_opinion(p)). \
+                        to_csv(self.get_phi_opinion_file_name(p, t))
 
                 # save nk (for Contrastive Opinion Mining)
                 self.nks[t] = np.copy(self.nk)
-                pd.DataFrame(self.nks).to_csv(os.path.join(self.parameter_dir, 'nks.csv'))
+                pd.DataFrame(self.nks).to_csv(self.get_nks_file_name())
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
@@ -171,28 +204,114 @@ class GibbsSampler():
                 phi_opinion[p] = np.mean(phi_opinion[p], axis=0)
         else:
             # load numbers from files
-            theta_topic = self.load_parameters('theta')
-            phi_topic = self.load_parameters('phi_topic')
+            theta_topic = self.load_parameters(self.THETA)
+            phi_topic = self.load_parameters(self.PHI_TOPIC)
             phi_opinion = {}
             for p in range(self.nPerspectives):
-                phi_opinion[p] = self.load_parameters('phi_opinion_{}'.format(p))
+                phi_opinion[p] = self.load_parameters(self.PHI_OPINION.
+                                                      format(p))
 
-        self.topics = self.to_df(phi_topic, self.corpus.topic_words())
-        self.opinions = [self.to_df(phi_opinion[p],
-                                    self.corpus.opinion_words())
-                         for p in range(self.nPerspectives)]
-        self.document_topic_matrix = self.to_df(theta_topic)
+        self.topics = phi_topic
+        self.opinions = phi_opinion
+        self.theta = theta_topic
 
-    def load_parameters(self, name):
+    def perplexity(self, index=None):
+        """Calculate perplexity for opinion words in the test set.
+
+        Implements perplexity calculation as described in [Fang et al., 2012]
+        section 5.1.1.
+
+        Parameter:
+            index : int
+                The index of the parameter samples to use. Default: the last
+                one (nIter-1).
+
+        Returns:
+            opinion perplexity : float
+        """
+        logger.info('calculating perplexity')
+
+        if not index:
+            index = self.nIter-1
+        if index >= self.nIter:
+            logger.warn('requested index to large ({}); setting it to {}'.
+                        format(index, self.nIter-1))
+            index = self.nIter-1
+
+        # load parameters
+        if not hasattr(self, 'opinions'):
+            self.opinions = np.array(
+                [self.load_parameters(self.PHI_OPINION.format(p),
+                                      index=index)
+                 for p in range(self.nPerspectives)], dtype=np.float_)
+
+        if not hasattr(self, 'topics'):
+            self.topics = self.load_parameters(self.PHI_TOPIC, index=index)
+
+        # run Gibbs sampler to find estimates for P(z_i = k|d) for documents in
+        # the test set
+        s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=self.nIter)
+        s._initialize(phi=self.topics)
+        s.run()
+        p_zkd = s.theta
+
+        # calculate opinion perplexity
+        log_p_ods = np.zeros(self.corpus.testSetLength(), dtype=np.float_)
+        notds = np.zeros(self.corpus.testSetLength(), dtype=np.int)
+        sums = []
+
+        for d, persp, d_p, doc in self.corpus.testSet():
+            notds[d] = self.corpus.doc_length(doc, 'opinion')
+            for w_id, freq in self.corpus.words_in_document(doc, 'opinion'):
+                su = np.sum(np.multiply(self.opinions[persp][:, w_id],
+                                        p_zkd[d]))
+                sums.append(su)
+            log_p_ods[d] = np.sum([np.log(x) for x in sums])
+        return np.exp(-(np.sum(log_p_ods) / np.sum(notds)))
+
+    def load_parameters(self, name, index=None, start=None, end=None):
+        if index < 0 or index > self.nIter:
+            index = None
+
+        if index:
+            return pd.read_csv(self.get_parameter_file_name(name, index),
+                               index_col=0).as_matrix()
+
+        if start < 0 or start > self.nIter or start > end:
+            start = 0
+
+        if end < 0 or end > self.nIter or end < start:
+            end = self.nIter
+
         data = None
-        for i in range(self.nIter):
-            fName = '{}/{}_{:04d}.csv'.format(self.parameter_dir, name, i)
-            ar = pd.read_csv(fName, index_col=0).as_matrix()
+        for i in range(start, end):
+            ar = pd.read_csv(self.get_parameter_file_name(name, i),
+                             index_col=0).as_matrix()
             if data is None:
                 data = np.array([ar])
             else:
                 data = np.append(data, np.array([ar]), axis=0)
         return np.mean(data, axis=0)
+
+    def get_phi_topic_file_name(self, number):
+        return self.get_parameter_file_name(self.PHI_TOPIC, number)
+
+    def get_phi_opinion_file_name(self, persp, number):
+        return self.get_parameter_file_name(self.PHI_OPINION.format(persp),
+                                            number)
+
+    def get_theta_file_name(self, number):
+        return self.get_parameter_file_name(self.THETA, number)
+
+    def get_nks_file_name(self):
+        return '{}/{}.csv'.format(self.get_parameter_dir_name(), self.NKS)
+
+    def get_parameter_file_name(self, name, number):
+        return '{}/{}_{:04d}.csv'.format(self.get_parameter_dir_name(),
+                                         name, number)
+
+    def get_parameter_dir_name(self):
+        return self.PARAMETER_DIR.format(self.out_dir)
 
     def print_topics_and_opinions(self, top=10):
         """Print topics and associated opinions.
@@ -267,12 +386,10 @@ class GibbsSampler():
             The index of the DataFrame are the topic words and the columns
             represent the perspectives.
         """
-        # TODO: create functions to access the filenames of the different parameters
         # TODO: allow the user to specify index or range of the parameters to use
-        fName = '{}/{}_{:04d}.csv'.format(self.parameter_dir, 'phi_topic', (self.nIter-1))
-        phi_topic = pd.read_csv(fName, index_col=0).values
+        phi_topic = self.load_parameters(self.PHI_TOPIC, index=self.nIter-1)
 
-        self.nks = pd.read_csv(os.path.join(self.parameter_dir, 'nks.csv'), index_col=0).values
+        self.nks = pd.read_csv(self.get_nks_file_name(), index_col=0).values
 
         # TODO: fix case when word not in topicDictionary
         query_word_id = self.corpus.topicDictionary.doc2bow([query])[0][0]
@@ -282,8 +399,8 @@ class GibbsSampler():
         result = pd.DataFrame(np.zeros((self.VO, self.nPerspectives)), words)
 
         for p in range(self.nPerspectives):
-            fName = '{}/{}_{}_{:04d}.csv'.format(self.parameter_dir, 'phi_opinion', p, (self.nIter-1))
-            phi_opinion = pd.read_csv(fName, index_col=0).values
+            phi_opinion = self.load_parameters(self.PHI_OPINION.format(p),
+                                               index=self.nIter-1)
 
             c_opinion = phi_opinion.transpose() * phi_topic[:, query_word_id] * self.nks[-1]
             c_opinion = np.sum(c_opinion, axis=1)
@@ -325,21 +442,29 @@ if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
     files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
+    #files = glob.glob('/home/jvdzwaan/data/tmp/test/*')
     #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
+    #out_dir = '/home/jvdzwaan/data/tmp/generated/test/'
+    out_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters/'
 
-    corpus = CPTCorpus.CPTCorpus(files)
-    corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
-    sampler = GibbsSampler(corpus, nTopics=100, nIter=2, out_dir='/home/jvdzwaan/data/tmp/dilipad/test_parameters')
+    corpus = CPTCorpus.CPTCorpus(files, testSplit=20)
+    #corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
+    corpus.save_dictionaries(directory=out_dir)
+    #corpus = CPTCorpus.CPTCorpus(files, testSplit=20,
+    #                             topicDict=corpus.topic_dict_file_name(out_dir),
+    #                             opinionDict=corpus.opinion_dict_file_name(out_dir))
+    sampler = GibbsSampler(corpus, nTopics=3, nIter=50, out_dir=out_dir)
     #sampler = GibbsSampler(corpus, nTopics=100, nIter=2)
     sampler._initialize()
-    #sampler.run()
+    sampler.run()
     #sampler.print_topics_and_opinions()
-    #sampler.topics_and_opinions_to_csv()
-    co = sampler.contrastive_opinions('mishandeling')
+    sampler.perplexity()
+    print [sampler.perplexity(index=i) for i in [0, 10, 20, 30, 40, 50]]
+    #co = sampler.contrastive_opinions('mishandeling')
     #print co
-    print sampler.print_topic(co[0])
-    print sampler.print_topic(co[1])
-    print 'Jensen-Shannon divergence:', sampler.jsd_opinions(co)
+    #print sampler.print_topic(co[0])
+    #print sampler.print_topic(co[1])
+    #print 'Jensen-Shannon divergence:', sampler.jsd_opinions(co)
     #sampler.parameter_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters/parameter_samples/'
     #theta_topic = sampler.load_parameters('theta')
     #phi_topic = sampler.load_parameters('phi_topic')
