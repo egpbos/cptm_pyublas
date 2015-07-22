@@ -82,6 +82,9 @@ class CPTCorpus():
                 yield w_id, i
                 i += 1
 
+    def doc_length(self, doc, topic_or_opinion):
+        return sum([freq for w_id, freq in doc[topic_or_opinion]])
+
     def __iter__(self):
         """Iterator over the documents in the corpus."""
         return self._iterate([p.trainSet for p in self.perspectives])
@@ -104,6 +107,9 @@ class CPTCorpus():
 
     def testSet(self):
         return self._iterate([p.testSet for p in self.perspectives])
+
+    def testSetLength(self):
+        return sum([len(p.testSet) for p in self.perspectives])
 
     def calculate_tf_and_df(self):
         self.topic_tf = Counter()

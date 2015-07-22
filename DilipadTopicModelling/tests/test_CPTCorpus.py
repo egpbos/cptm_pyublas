@@ -85,6 +85,13 @@ def test_loading_of_dictionaries_from_file():
     yield assert_equal, corpus.opinionDictionary, corpus2.opinionDictionary
 
 
+def test_doc_length():
+    """Test document lengths of generated documents"""
+    for d, persp, d_p, doc in corpus:
+        yield assert_equal, corpus.doc_length(doc, 'topic'), 50
+        yield assert_equal, corpus.doc_length(doc, 'opinion'), 20
+
+
 def test_calculate_tf_and_df():
     """Test calculation of tf and df"""
     topic_df = Counter()

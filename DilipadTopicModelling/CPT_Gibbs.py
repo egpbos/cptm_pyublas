@@ -215,6 +215,60 @@ class GibbsSampler():
         self.opinions = phi_opinion
         self.theta = theta_topic
 
+    def perplexity(self, index=None):
+        """Calculate perplexity for opinion words in the test set.
+
+        Implements perplexity calculation as described in [Fang et al., 2012]
+        section 5.1.1.
+
+        Parameter:
+            index : int
+                The index of the parameter samples to use. Default: the last
+                one (nIter-1).
+
+        Returns:
+            opinion perplexity : float
+        """
+        logger.info('calculating perplexity')
+
+        if not index:
+            index = self.nIter-1
+        if index >= self.nIter:
+            logger.warn('requested index to large ({}); setting it to {}'.
+                        format(index, self.nIter-1))
+            index = self.nIter-1
+
+        # load parameters
+        if not hasattr(self, 'opinions'):
+            self.opinions = np.array(
+                [self.load_parameters(self.PHI_OPINION.format(p),
+                                      index=index)
+                 for p in range(self.nPerspectives)], dtype=np.float_)
+
+        if not hasattr(self, 'topics'):
+            self.topics = self.load_parameters(self.PHI_TOPIC, index=index)
+
+        # run Gibbs sampler to find estimates for P(z_i = k|d) for documents in
+        # the test set
+        s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=self.nIter)
+        s._initialize(phi=self.topics)
+        s.run()
+        p_zkd = s.theta
+
+        # calculate opinion perplexity
+        log_p_ods = np.zeros(self.corpus.testSetLength(), dtype=np.float_)
+        notds = np.zeros(self.corpus.testSetLength(), dtype=np.int)
+        sums = []
+
+        for d, persp, d_p, doc in self.corpus.testSet():
+            notds[d] = self.corpus.doc_length(doc, 'opinion')
+            for w_id, freq in self.corpus.words_in_document(doc, 'opinion'):
+                su = np.sum(np.multiply(self.opinions[persp][:, w_id],
+                                        p_zkd[d]))
+                sums.append(su)
+            log_p_ods[d] = np.sum([np.log(x) for x in sums])
+        return np.exp(-(np.sum(log_p_ods) / np.sum(notds)))
+
     def load_parameters(self, name, index=None, start=None, end=None):
         if index < 0 or index > self.nIter:
             index = None
@@ -388,20 +442,24 @@ if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
     files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
+    #files = glob.glob('/home/jvdzwaan/data/tmp/test/*')
     #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
+    #out_dir = '/home/jvdzwaan/data/tmp/generated/test/'
+    out_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters/'
 
     corpus = CPTCorpus.CPTCorpus(files, testSplit=20)
-    corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
-    sampler = GibbsSampler(corpus, nTopics=100, nIter=2,
-                           out_dir='/home/jvdzwaan/data/tmp/dilipad/test_parameters')
+    #corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
+    corpus.save_dictionaries(directory=out_dir)
+    #corpus = CPTCorpus.CPTCorpus(files, testSplit=20,
+    #                             topicDict=corpus.topic_dict_file_name(out_dir),
+    #                             opinionDict=corpus.opinion_dict_file_name(out_dir))
+    sampler = GibbsSampler(corpus, nTopics=3, nIter=50, out_dir=out_dir)
     #sampler = GibbsSampler(corpus, nTopics=100, nIter=2)
     sampler._initialize()
     sampler.run()
     #sampler.print_topics_and_opinions()
-    #sampler.topics_and_opinions_to_csv()
-    #s = GibbsSampler(sampler.corpus, nTopics=sampler.nTopics, nIter=sampler.nIter)
-    #s._initialize(phi_t=sampler.topics.copy())
-    #s.run()
+    sampler.perplexity()
+    print [sampler.perplexity(index=i) for i in [0, 10, 20, 30, 40, 50]]
     #co = sampler.contrastive_opinions('mishandeling')
     #print co
     #print sampler.print_topic(co[0])
