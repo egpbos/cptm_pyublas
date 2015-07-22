@@ -30,6 +30,9 @@ class CPTCorpus():
             Integer specifying the percentage of documents to be used as test
             set (for calculating perplexity).
     """
+    TOPIC_DICT = 'topicDict.dict'
+    OPINION_DICT = 'opinionDict.dict'
+
     def __init__(self, input, topicDict=None, opinionDict=None,
                  testSplit=None):
         logger.info('initialize CPT Corpus with {} perspectives'
@@ -40,22 +43,17 @@ class CPTCorpus():
                              for d in input]
 
         if isinstance(topicDict, str):
-            self.topic_dict_file_name = topicDict
             self.load_dictionaries(topicDict=topicDict)
         elif isinstance(topicDict, corpora.Dictionary):
             self.topicDictionary = topicDict
 
         if isinstance(opinionDict, str):
-            self.opinion_dict_file_name = opinionDict
             self.load_dictionaries(opinionDict=opinionDict)
         elif isinstance(opinionDict, corpora.Dictionary):
             self.opinionDictionary = opinionDict
 
         if not topicDict or not opinionDict:
             self._create_corpus_wide_dictionaries()
-
-        self.topic_dict_file_name = None
-        self.opinion_dict_file_name = None
 
         self.testSplit = testSplit
 
@@ -218,18 +216,22 @@ class CPTCorpus():
         else:
             directory = ''
 
-        self.topic_dict_file_name = os.path.join(directory, 'topicDict.dict')
         self.topicDictionary.save(self.topic_dict_file_name(directory))
-
-        self.opinion_dict_file_name = os.path.join(directory,
-                                                   'opinionDict.dict')
         self.opinionDictionary.save(self.opinion_dict_file_name(directory))
 
     def load_dictionaries(self, topicDict=None, opinionDict=None):
         if topicDict:
             self.topicDictionary = corpora.Dictionary.load(topicDict)
+            logger.info('topic dictionary {}'.format(self.topicDictionary))
         if opinionDict:
             self.opinionDictionary = corpora.Dictionary.load(opinionDict)
+            logger.info('opinion dictionary {}'.format(self.opinionDictionary))
+
+    def topic_dict_file_name(self, directory=''):
+        return os.path.join(directory, self.TOPIC_DICT)
+
+    def opinion_dict_file_name(self, directory=''):
+        return os.path.join(directory, self.OPINION_DICT)
 
 
 class Perspective():
@@ -332,14 +334,20 @@ if __name__ == '__main__':
     files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
     files.sort()
     #print '\n'.join(files)
+    out_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters'
 
     corpus = CPTCorpus(files, testSplit=20)
+    corpus.save_dictionaries(directory=out_dir)
+    print corpus.topicDictionary
+    print corpus.opinionDictionary
     #print len(corpus.perspectives[0].opinionCorpus)
     #print len(corpus.perspectives[0].opinionTestCorpus)
-    for d in corpus.testSet():
-        print d
-    #corpus = CPTCorpus(files, topicDict='/home/jvdzwaan/data/dilipad/dictionaries/topicDict.dict',
-    #                   opinionDict='/home/jvdzwaan/data/dilipad/dictionaries/opinionDict.dict')
+    #for d in corpus.testSet():
+    #    print d
+    corpus2 = CPTCorpus(files, topicDict=corpus.topic_dict_file_name(out_dir),
+                        opinionDict=corpus.opinion_dict_file_name(out_dir))
+    print corpus2.topicDictionary
+    print corpus2.opinionDictionary
     #corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
     #d = '/home/jvdzwaan/data/dilipad/dictionaries'
     #corpus.save_dictionaries(directory=d)

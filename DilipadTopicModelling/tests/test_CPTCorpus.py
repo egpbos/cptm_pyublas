@@ -11,6 +11,7 @@ from collections import Counter
 def setup():
     global data_dir
     global persp_dirs
+    global dict_dir
     global documents
     global corpus
 
@@ -19,9 +20,11 @@ def setup():
     documents = generateCPTCorpus.generate_cpt_corpus(data_dir)
     corpus = CPTCorpus.CPTCorpus(persp_dirs)
 
+    dict_dir = 'test_dict'
 
 def teardown():
     shutil.rmtree(data_dir)
+    shutil.rmtree(dict_dir)
 
 
 def test_perspective_directories_exist():
@@ -62,6 +65,24 @@ def test_corpus_lengths():
     """Compare length of corpus with the sum of the perspective corpora"""
     per_perspective = [len(p) for p in corpus.perspectives]
     assert_equal(len(corpus), sum(per_perspective))
+
+
+def test_loading_of_dictionaries():
+    """Test loading of the corpus wide dictionaries"""
+    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, topicDict=corpus.topicDictionary,
+                                  opinionDict=corpus.opinionDictionary)
+    yield assert_equal, corpus.topicDictionary, corpus2.topicDictionary
+    yield assert_equal, corpus.opinionDictionary, corpus2.opinionDictionary
+
+
+def test_loading_of_dictionaries_from_file():
+    """Test loading of the corpus wide dictionaries from file"""
+    corpus.save_dictionaries(directory=dict_dir)
+
+    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, topicDict=corpus.topic_dict_file_name(dict_dir),
+                                  opinionDict=corpus.opinion_dict_file_name(dict_dir))
+    yield assert_equal, corpus.topicDictionary, corpus2.topicDictionary
+    yield assert_equal, corpus.opinionDictionary, corpus2.opinionDictionary
 
 
 def test_calculate_tf_and_df():
