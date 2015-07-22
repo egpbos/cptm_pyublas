@@ -22,7 +22,7 @@ def gibbs_inner(self):
     cdef np.ndarray[double, ndim=1, mode='c'] p
     p = np.empty(ndk.shape[1], dtype=np.double)
 
-    for d, persp, d_p, doc in self.corpus:
+    for d, persp, d_p, doc in self.documents:
         for w_id, i in self.corpus.words_in_document(doc, 'topic'):
             topic = z[d, i]
 

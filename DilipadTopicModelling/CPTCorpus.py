@@ -7,6 +7,7 @@ from itertools import izip
 from collections import Counter
 import os
 import random
+import numpy as np
 
 
 logger = logging.getLogger(__name__)
@@ -268,6 +269,11 @@ class Perspective():
 
     def __len__(self):
         return len(self.trainSet)
+
+    def corpus(self, testSet=None):
+        if isinstance(testSet, np.ndarray):
+            return self.testSet
+        return self.trainSet
 
 
 class Corpus():
