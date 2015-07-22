@@ -34,15 +34,23 @@ class CPTCorpus():
     TOPIC_DICT = 'topicDict.dict'
     OPINION_DICT = 'opinionDict.dict'
 
-    def __init__(self, input, topicDict=None, opinionDict=None,
-                 testSplit=None):
-        logger.info('initialize CPT Corpus with {} perspectives'
-                    .format(len(input)))
-        input.sort()
-        self.perspectives = [Perspective(glob.glob('{}/*.txt'.format(d)), d,
-                                         testSplit)
-                             for d in input]
-        self.input = input
+    def __init__(self, input=None, topicDict=None, opinionDict=None,
+                 testSplit=None, file_dict=None):
+        if not file_dict is None:
+            logger.info('initialize CPT Corpus with file_dict: {} perspectives'
+                        .format(len(file_dict)))
+            self.perspectives = [Perspective(file_dict=file_dict.get(str(p)))
+                                 for p in range(len(file_dict))]
+            print self.perspectives
+        else:
+            logger.info('initialize CPT Corpus with {} perspectives'
+                        .format(len(input)))
+            input.sort()
+            self.perspectives = [Perspective(input=glob.glob('{}/*.txt'.
+                                             format(d)), directory=d,
+                                             testSplit=testSplit)
+                                 for d in input]
+            self.input = input
 
         if isinstance(topicDict, str):
             self.load_dictionaries(topicDict=topicDict)
@@ -252,6 +260,13 @@ class CPTCorpus():
         with open(file_name, 'wb') as f:
             json.dump(file_dict, f, sort_keys=True, indent=4)
 
+    @classmethod
+    def load(self, file_name, topicDict=None, opinionDict=None):
+        with open(file_name, 'rb') as f:
+            file_dict = json.load(f)
+        return self(file_dict=file_dict, topicDict=topicDict,
+                    opinionDict=opinionDict)
+
 
 class Perspective():
     """Class representing a perspective in cross perspective topic modeling.
@@ -264,30 +279,38 @@ class Perspective():
             (.txt). A text file contains the topic words on the first line and
             opinion words on the second line.
     """
-    def __init__(self, input, directory, testSplit=None):
-        name = directory.rsplit('/', 1)[1]
-        logger.info('initialize perspective "{}" (path: {} - {} documents)'
-                    .format(name, directory, len(input)))
-        self.name = name
-        self.directory = directory
-        self.input = input[:]
-
-        if testSplit and (testSplit > 99 or testSplit < 1):
-            testSplit = None
-            logger.warn('illegal value for testSplit ({}); ' +
-                        'not creating test set'.format(testSplit))
-
-        if testSplit:
-            splitIndex = int(len(input)/100.0*testSplit)
-            logger.info('saving {} of {} documents for testing'.
-                        format(splitIndex, len(input)))
-            random.shuffle(input)
-            self.testFiles = input[:splitIndex]
-            input = input[splitIndex:]
+    def __init__(self, input=None, directory=None, testSplit=None, file_dict=None):
+        if not file_dict is None:
+            self.testFiles = file_dict.get('test')
             self.testSet = Corpus(self.testFiles)
 
-        self.trainFiles = input
-        self.trainSet = Corpus(self.trainFiles)
+            self.trainFiles = file_dict.get('train')
+            self.trainSet = Corpus(self.trainFiles)
+
+        else:
+            name = directory.rsplit('/', 1)[1]
+            logger.info('initialize perspective "{}" (path: {} - {} documents)'
+                        .format(name, directory, len(input)))
+            self.name = name
+            self.directory = directory
+            self.input = input[:]
+
+            if testSplit and (testSplit > 99 or testSplit < 1):
+                testSplit = None
+                logger.warn('illegal value for testSplit ({}); ' +
+                            'not creating test set'.format(testSplit))
+
+            if testSplit:
+                splitIndex = int(len(input)/100.0*testSplit)
+                logger.info('saving {} of {} documents for testing'.
+                            format(splitIndex, len(input)))
+                random.shuffle(input)
+                self.testFiles = input[:splitIndex]
+                input = input[splitIndex:]
+                self.testSet = Corpus(self.testFiles)
+
+            self.trainFiles = input
+            self.trainSet = Corpus(self.trainFiles)
 
     def __len__(self):
         return len(self.trainSet)
@@ -356,9 +379,11 @@ if __name__ == '__main__':
     #print '\n'.join(files)
     out_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters'
 
-    corpus = CPTCorpus(files, testSplit=40)
-    corpus.save_dictionaries(directory=out_dir)
-    corpus.save(os.path.join(out_dir, 'corpus.json'))
+    #corpus = CPTCorpus(files, testSplit=40)
+    #corpus.save_dictionaries(directory=out_dir)
+    c = os.path.join(out_dir, 'corpus.json')
+    #corpus.save(os.path.join(out_dir, 'corpus.json'))
+    corpus2 = CPTCorpus.load(c)
     #corpus.get_files_in_train_and_test_sets()
     #print corpus.topicDictionary
     #print corpus.opinionDictionary
