@@ -216,6 +216,14 @@ class GibbsSampler():
         self.theta = theta_topic
 
     def topic_word_perplexity(self, index=None):
+        """Calculate topic word perplexity of the test set.
+
+        Topic word perplexity is calculated using importance sampling, as in
+        [Griffiths and Steyvers, 2004]. However, aAccording to
+        [Wallach et al. 2009], this does not always result in an accurate
+        estimate of the perplexity.
+        """
+        # TODO: implement more accurate estimate of perplexity
         logger.info('calculating topic word perplexity')
 
         if index is None:
@@ -228,8 +236,7 @@ class GibbsSampler():
         # load parameters
         phi_topic = self.load_parameters(self.PHI_TOPIC, index=index)
 
-        # run Gibbs sampler to find estimates for P(z_i = k|d) for documents in
-        # the test set
+        # run Gibbs sampler to find estimates for theta of the test set
         s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=1000)
         s._initialize(phi_topic=phi_topic)
         s.run()
@@ -243,13 +250,7 @@ class GibbsSampler():
                 total_topic_words_in_test_documents += freq
                 log_p_w += freq * np.log(np.sum(s.theta[d]*phi_topic[:, w_id]))
 
-        #print 'theta test set', s.theta
-        #print 'shape theta test set', s.theta.shape
-        #print np.max(s.theta)
-        #print 'total words', total_topic_words_in_test_documents
-        print 'log_p_w', log_p_w
         perp = np.exp(-(log_p_w/total_topic_words_in_test_documents))
-        print perp
         return perp
 
     def perplexity(self, index=None):
