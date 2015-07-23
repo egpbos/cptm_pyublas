@@ -250,7 +250,7 @@ class GibbsSampler():
                 total_topic_words_in_test_documents += freq
                 log_p_w += freq * np.log(np.sum(s.theta[d]*phi_topic[:, w_id]))
 
-        perp = np.exp(-(log_p_w/total_topic_words_in_test_documents))
+        perp = np.exp(-log_p_w/total_topic_words_in_test_documents)
         return perp
 
     def perplexity(self, index=None):
