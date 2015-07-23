@@ -217,9 +217,8 @@ class GibbsSampler():
 
     def topic_word_perplexity(self, index=None):
         logger.info('calculating topic word perplexity')
-        logger.info('index = {}'.format(i))
 
-        if not index:
+        if index is None:
             index = self.nIter-1
         if index >= self.nIter:
             logger.warn('requested index to large ({}); setting it to {}'.
@@ -235,6 +234,7 @@ class GibbsSampler():
         s._initialize(phi_topic=phi_topic)
         s.run()
 
+        # calculate perplexity
         total_topic_words_in_test_documents = 0
         log_p_w = 0.0
 
@@ -268,7 +268,7 @@ class GibbsSampler():
         """
         logger.info('calculating perplexity')
 
-        if not index:
+        if index is None:
             index = self.nIter-1
         if index >= self.nIter:
             logger.warn('requested index to large ({}); setting it to {}'.
@@ -311,7 +311,8 @@ class GibbsSampler():
             index = None
 
         if index:
-            logger.info('loading parameter file {}'.format(self.get_parameter_file_name(name, index)))
+            logger.info('loading parameter file {}'.
+                        format(self.get_parameter_file_name(name, index)))
             return pd.read_csv(self.get_parameter_file_name(name, index),
                                index_col=0).as_matrix()
 
