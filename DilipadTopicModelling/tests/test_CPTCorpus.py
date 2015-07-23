@@ -22,6 +22,7 @@ def setup():
 
     dict_dir = 'test_dict'
 
+
 def teardown():
     shutil.rmtree(data_dir)
     shutil.rmtree(dict_dir)
@@ -176,3 +177,49 @@ def test_loop_over_testSet():
     yield assert_equal, d, 1
     yield assert_equal, persp, len(corpus.perspectives)-1
     yield assert_equal, d_p, 0
+
+
+def test_get_files_in_train_and_test_sets():
+    """Test equallity of file_dicts"""
+    file_dict1 = corpus.get_files_in_train_and_test_sets()
+
+    corpus2 = CPTCorpus.CPTCorpus(file_dict=file_dict1)
+    file_dict2 = corpus2.get_files_in_train_and_test_sets()
+
+    assert_equal(file_dict1, file_dict2)
+
+
+def test_get_files_in_train_and_test_sets_testSplit():
+    """Test equallity of file_dicts with testSplit"""
+    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=40)
+    file_dict1 = corpus2.get_files_in_train_and_test_sets()
+
+    corpus3 = CPTCorpus.CPTCorpus(file_dict=file_dict1)
+    file_dict2 = corpus3.get_files_in_train_and_test_sets()
+
+    assert_equal(file_dict1, file_dict2)
+
+
+def test_load_corpus_from_file():
+    """Test load corpus from json file"""
+    file_dict1 = corpus.get_files_in_train_and_test_sets()
+
+    fName = '{}/corpus.json'.format(data_dir)
+    corpus.save(fName)
+
+    corpus2 = CPTCorpus.CPTCorpus.load(fName)
+    file_dict2 = corpus2.get_files_in_train_and_test_sets()
+
+    assert_equal(file_dict1, file_dict2)
+
+
+def test_persp_name():
+    """Verify the name generated for a perspective"""
+    names = ['{}/p0/document1.txt'.format(data_dir),
+             '{}/p0/'.format(data_dir),
+             '{}/p0'.format(data_dir)]
+
+    for name in names:
+        pName = corpus.perspectives[0].persp_name(name)
+
+        yield assert_equal, pName, 'p0'

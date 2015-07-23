@@ -41,14 +41,12 @@ class CPTCorpus():
                         .format(len(file_dict)))
             self.perspectives = [Perspective(file_dict=file_dict.get(str(p)))
                                  for p in range(len(file_dict))]
-            print self.perspectives
         else:
             logger.info('initialize CPT Corpus with {} perspectives'
                         .format(len(input)))
             input.sort()
             self.perspectives = [Perspective(input=glob.glob('{}/*.txt'.
-                                             format(d)), directory=d,
-                                             testSplit=testSplit)
+                                             format(d)), testSplit=testSplit)
                                  for d in input]
             self.input = input
 
@@ -252,7 +250,7 @@ class CPTCorpus():
     def get_files_in_train_and_test_sets(self):
         file_dict = {}
         for i, p in enumerate(self.perspectives):
-            file_dict[i] = {'train': p.trainFiles, 'test': p.testFiles}
+            file_dict[str(i)] = {'train': p.trainFiles, 'test': p.testFiles}
         return file_dict
 
     def save(self, file_name):
@@ -279,7 +277,7 @@ class Perspective():
             (.txt). A text file contains the topic words on the first line and
             opinion words on the second line.
     """
-    def __init__(self, input=None, directory=None, testSplit=None, file_dict=None):
+    def __init__(self, input=None, testSplit=None, file_dict=None):
         if not file_dict is None:
             self.testFiles = file_dict.get('test')
             self.testSet = Corpus(self.testFiles)
@@ -287,13 +285,13 @@ class Perspective():
             self.trainFiles = file_dict.get('train')
             self.trainSet = Corpus(self.trainFiles)
 
+            self.name = self.persp_name(self.trainSet.input[0])
         else:
-            name = directory.rsplit('/', 1)[1]
-            logger.info('initialize perspective "{}" (path: {} - {} documents)'
-                        .format(name, directory, len(input)))
-            self.name = name
-            self.directory = directory
+            self.name = self.persp_name(input[0])
+            logger.info('initialize perspective "{}" ({} documents)'
+                        .format(self.name, len(input)))
             self.input = input[:]
+            self.testFiles = []
 
             if testSplit and (testSplit > 99 or testSplit < 1):
                 testSplit = None
@@ -312,6 +310,18 @@ class Perspective():
             self.trainFiles = input
             self.trainSet = Corpus(self.trainFiles)
 
+    def persp_name(self, fName):
+        if os.path.isfile(fName):
+            p, f = os.path.split(fName)
+        if os.path.isdir(fName):
+            if fName.endswith('/'):
+                # remove trailing /
+                p = fName[:-1]
+            else:
+                p = fName
+        _p, name = os.path.split(p)
+        return name
+
     def __len__(self):
         return len(self.trainSet)
 
@@ -328,6 +338,7 @@ class Corpus():
     class.
     """
     def __init__(self, input):
+        self.input = input
         self.topicCorpus = PartialCorpus(input, lineNumber=0)
         self.opinionCorpus = PartialCorpus(input, lineNumber=1)
 
@@ -379,12 +390,13 @@ if __name__ == '__main__':
     #print '\n'.join(files)
     out_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters'
 
-    #corpus = CPTCorpus(files, testSplit=40)
+    corpus = CPTCorpus(files, testSplit=40)
     #corpus.save_dictionaries(directory=out_dir)
     c = os.path.join(out_dir, 'corpus.json')
-    #corpus.save(os.path.join(out_dir, 'corpus.json'))
+    corpus.save(os.path.join(out_dir, 'corpus.json'))
+    print corpus.get_files_in_train_and_test_sets()
     corpus2 = CPTCorpus.load(c)
-    #corpus.get_files_in_train_and_test_sets()
+    print corpus2.get_files_in_train_and_test_sets()
     #print corpus.topicDictionary
     #print corpus.opinionDictionary
     #print len(corpus.perspectives[0].opinionCorpus)
