@@ -8,6 +8,7 @@ from collections import Counter
 import os
 import random
 import numpy as np
+import json
 
 
 logger = logging.getLogger(__name__)
@@ -33,14 +34,21 @@ class CPTCorpus():
     TOPIC_DICT = 'topicDict.dict'
     OPINION_DICT = 'opinionDict.dict'
 
-    def __init__(self, input, topicDict=None, opinionDict=None,
-                 testSplit=None):
-        logger.info('initialize CPT Corpus with {} perspectives'
-                    .format(len(input)))
-        input.sort()
-        self.perspectives = [Perspective(glob.glob('{}/*.txt'.format(d)), d,
-                                         testSplit)
-                             for d in input]
+    def __init__(self, input=None, topicDict=None, opinionDict=None,
+                 testSplit=None, file_dict=None):
+        if not file_dict is None:
+            logger.info('initialize CPT Corpus with file_dict: {} perspectives'
+                        .format(len(file_dict)))
+            self.perspectives = [Perspective(file_dict=file_dict.get(str(p)))
+                                 for p in range(len(file_dict))]
+        else:
+            logger.info('initialize CPT Corpus with {} perspectives'
+                        .format(len(input)))
+            input.sort()
+            self.perspectives = [Perspective(input=glob.glob('{}/*.txt'.
+                                             format(d)), testSplit=testSplit)
+                                 for d in input]
+            self.input = input
 
         if isinstance(topicDict, str):
             self.load_dictionaries(topicDict=topicDict)
@@ -239,6 +247,24 @@ class CPTCorpus():
     def opinion_dict_file_name(self, directory=''):
         return os.path.join(directory, self.OPINION_DICT)
 
+    def get_files_in_train_and_test_sets(self):
+        file_dict = {}
+        for i, p in enumerate(self.perspectives):
+            file_dict[str(i)] = {'train': p.trainFiles, 'test': p.testFiles}
+        return file_dict
+
+    def save(self, file_name):
+        file_dict = self.get_files_in_train_and_test_sets()
+        with open(file_name, 'wb') as f:
+            json.dump(file_dict, f, sort_keys=True, indent=4)
+
+    @classmethod
+    def load(self, file_name, topicDict=None, opinionDict=None):
+        with open(file_name, 'rb') as f:
+            file_dict = json.load(f)
+        return self(file_dict=file_dict, topicDict=topicDict,
+                    opinionDict=opinionDict)
+
 
 class Perspective():
     """Class representing a perspective in cross perspective topic modeling.
@@ -251,29 +277,50 @@ class Perspective():
             (.txt). A text file contains the topic words on the first line and
             opinion words on the second line.
     """
-    def __init__(self, input, directory, testSplit=None):
-        name = directory.rsplit('/', 1)[1]
-        logger.info('initialize perspective "{}" (path: {} - {} documents)'
-                    .format(name, directory, len(input)))
-        self.name = name
-        self.directory = directory
-
-        if testSplit and (testSplit > 99 or testSplit < 1):
-            testSplit = None
-            logger.warn('illegal value for testSplit ({}); ' +
-                        'not creating test set'.format(testSplit))
-
-        if testSplit:
-            splitIndex = int(len(input)/100.0*testSplit)
-            logger.info('saving {} of {} documents for testing'.
-                        format(splitIndex, len(input)))
-            random.shuffle(input)
-            self.testFiles = input[:splitIndex]
-            input = input[splitIndex:]
+    def __init__(self, input=None, testSplit=None, file_dict=None):
+        if not file_dict is None:
+            self.testFiles = file_dict.get('test')
             self.testSet = Corpus(self.testFiles)
 
-        self.input = input
-        self.trainSet = Corpus(self.input)
+            self.trainFiles = file_dict.get('train')
+            self.trainSet = Corpus(self.trainFiles)
+
+            self.name = self.persp_name(self.trainSet.input[0])
+        else:
+            self.name = self.persp_name(input[0])
+            logger.info('initialize perspective "{}" ({} documents)'
+                        .format(self.name, len(input)))
+            self.input = input[:]
+            self.testFiles = []
+
+            if testSplit and (testSplit > 99 or testSplit < 1):
+                testSplit = None
+                logger.warn('illegal value for testSplit ({}); ' +
+                            'not creating test set'.format(testSplit))
+
+            if testSplit:
+                splitIndex = int(len(input)/100.0*testSplit)
+                logger.info('saving {} of {} documents for testing'.
+                            format(splitIndex, len(input)))
+                random.shuffle(input)
+                self.testFiles = input[:splitIndex]
+                input = input[splitIndex:]
+                self.testSet = Corpus(self.testFiles)
+
+            self.trainFiles = input
+            self.trainSet = Corpus(self.trainFiles)
+
+    def persp_name(self, fName):
+        if os.path.isfile(fName):
+            p, f = os.path.split(fName)
+        if os.path.isdir(fName):
+            if fName.endswith('/'):
+                # remove trailing /
+                p = fName[:-1]
+            else:
+                p = fName
+        _p, name = os.path.split(p)
+        return name
 
     def __len__(self):
         return len(self.trainSet)
@@ -291,6 +338,7 @@ class Corpus():
     class.
     """
     def __init__(self, input):
+        self.input = input
         self.topicCorpus = PartialCorpus(input, lineNumber=0)
         self.opinionCorpus = PartialCorpus(input, lineNumber=1)
 
@@ -335,25 +383,30 @@ class PartialCorpus(corpora.TextCorpus):
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
-    #files = glob.glob('/home/jvdzwaan/data/dilipad/generated/p*')
+    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/p*')
     #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
-    files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
+    #files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
     files.sort()
     #print '\n'.join(files)
     out_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters'
 
-    corpus = CPTCorpus(files, testSplit=20)
-    corpus.save_dictionaries(directory=out_dir)
-    print corpus.topicDictionary
-    print corpus.opinionDictionary
+    corpus = CPTCorpus(files, testSplit=40)
+    #corpus.save_dictionaries(directory=out_dir)
+    c = os.path.join(out_dir, 'corpus.json')
+    corpus.save(os.path.join(out_dir, 'corpus.json'))
+    print corpus.get_files_in_train_and_test_sets()
+    corpus2 = CPTCorpus.load(c)
+    print corpus2.get_files_in_train_and_test_sets()
+    #print corpus.topicDictionary
+    #print corpus.opinionDictionary
     #print len(corpus.perspectives[0].opinionCorpus)
     #print len(corpus.perspectives[0].opinionTestCorpus)
     #for d in corpus.testSet():
     #    print d
-    corpus2 = CPTCorpus(files, topicDict=corpus.topic_dict_file_name(out_dir),
-                        opinionDict=corpus.opinion_dict_file_name(out_dir))
-    print corpus2.topicDictionary
-    print corpus2.opinionDictionary
+    #corpus2 = CPTCorpus(files, topicDict=corpus.topic_dict_file_name(out_dir),
+    #                    opinionDict=corpus.opinion_dict_file_name(out_dir))
+    #print corpus2.topicDictionary
+    #print corpus2.opinionDictionary
     #corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
     #d = '/home/jvdzwaan/data/dilipad/dictionaries'
     #corpus.save_dictionaries(directory=d)
