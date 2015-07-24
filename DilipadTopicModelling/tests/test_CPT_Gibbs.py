@@ -22,7 +22,7 @@ def setup():
     persp_dirs = ['{}{}'.format(data_dir, p) for p in ('p0', 'p1')]
     documents = generateCPTCorpus.generate_cpt_corpus(data_dir)
     corpus = CPTCorpus.CPTCorpus(persp_dirs)
-    sampler = GibbsSampler(corpus, nTopics=3, nIter=2, out_dir=out_dir)
+    sampler = GibbsSampler(corpus, nTopics=3, nIter=5, out_dir=out_dir)
     sampler._initialize()
     sampler.run()
 
@@ -103,13 +103,33 @@ def test_get_phi_opinion_file_name():
             yield assert_equal, os.path.isfile(file_name), True
 
 
-def test_load_parameters_illegal_index():
-    mean = sampler.load_parameters(sampler.PHI_TOPIC)
-    values = [-1, sampler.nIter+5, 100000000]
+def test_check_index():
+    """Return index of nIter-1 for certain inputs of _check_index"""
+    values = [None, sampler.nIter]
     for v in values:
-        result = sampler.load_parameters(sampler.PHI_TOPIC, index=v)
-        yield assert_almost_equal, result, mean
+        yield assert_equal, sampler._check_index(v), sampler.nIter-1
 
-# TODO: add test for illegal start values
-# TODO: add test for illegal end values
-        #self, name, index=None, start=None, end=None):
+
+def test_check_start():
+    """Test _check_start_and_end with values for start"""
+    values = [(-1, 0), (sampler.nIter+5, 0),
+              (sampler.nIter-3, sampler.nIter-3)]
+    for input_v, output_v in values:
+        start, end = sampler._check_start_and_end(input_v, sampler.nIter)
+        yield assert_equal, start, output_v
+
+
+def test_check_end():
+    """Test _check_start_and_end with values for start"""
+    values = [(-1, sampler.nIter), (sampler.nIter+5, sampler.nIter)]
+    for input_v, output_v in values:
+        start, end = sampler._check_start_and_end(0, input_v)
+        yield assert_equal, end, output_v
+
+
+def test_check_start_and_end():
+    """Test _check_start_and_end with values for start and end"""
+    # start > end
+    start, end = sampler._check_start_and_end(3, 2)
+    yield assert_equal, start, 0
+    yield assert_equal, end, 2
