@@ -429,20 +429,23 @@ class GibbsSampler():
     def get_parameter_dir_name(self):
         return self.PARAMETER_DIR.format(self.out_dir)
 
-    def print_topics_and_opinions(self, top=10):
+    def print_topics_and_opinions(self, topics, opinions, top=10):
         """Print topics and associated opinions.
+
+        Parameters:
+            topics : pandas DataFrame
+            opinions : list of pandas DataFrames
 
         The <top> top words and weights are printed.
         """
         for i in range(self.nTopics):
-            print u'Topic {}: {}'. \
-                  format(i, self.print_topic(self.topics.loc[:, i].copy(),
-                                             top))
+            print u'Topic #{}: {}'. \
+                  format(i, self.print_topic(topics.loc[:, i].copy(), top))
             print
             for p in range(self.nPerspectives):
                 print u'Opinion {}: {}'. \
                       format(self.corpus.perspectives[p].name,
-                             self.print_topic(self.opinions[p].loc[:, i].copy(),
+                             self.print_topic(opinions[p].loc[:, i].copy(),
                                               top))
             print '-----'
             print
@@ -455,22 +458,25 @@ class GibbsSampler():
              for word, p in s[0:top].iteritems()]
         return u' - '.join(t)
 
-    def topics_and_opinions_to_csv(self):
-        # TODO: fix case when self.topics and/or self.opinions do not exist
+    def topics_to_df(self, phi, words):
+        """Returns a pandas DataFrame containing words x probabilities.
 
-        if self.out_dir:
-            path = self.out_dir
-        else:
-            path = ''
+        The DataFrame is used as input for print_topics_and_opinions() and
+        print_topic().
 
-        self.topics.to_csv(os.path.join(path, 'topics.csv'), encoding='utf8')
-        self.document_topic_matrix.to_csv(os.path.join(path,
-                                                       'document-topic.csv'))
-        for p in range(self.nPerspectives):
-            p_name = self.corpus.perspectives[p].name
-            f_name = 'opinions_{}.csv'.format(p_name)
-            self.opinions[p].to_csv(os.path.join(path, f_name),
-                                    encoding='utf8')
+        Parameters:
+            phi : numpy array
+                Array containing the word probabilities for the topics.
+            words : list of strings
+                One of CPTCorpus.topic_words() and CPTCorpus.opinion_words().
+
+        Returns:
+            pandas DataFrame
+                containing words x probabilities
+        """
+        df = pd.DataFrame(phi, columns=words)
+        df = df.transpose()
+        return df
 
     def contrastive_opinions(self, query):
         """Returns a DataFrame containing contrastive opinions for the query.
@@ -566,6 +572,14 @@ if __name__ == '__main__':
     #sampler = GibbsSampler(corpus, nTopics=100, nIter=2)
     sampler._initialize()
     sampler.run()
+
+    topics_df = sampler.topics_to_df(sampler.get_phi_topic(),
+                                     sampler.corpus.topic_words())
+    opinion_df = []
+    for p in range(sampler.nPerspectives):
+        opinion_df.append(sampler.topics_to_df(sampler.get_phi_opinion()[p],
+                                               sampler.corpus.opinion_words()))
+    sampler.print_topics_and_opinions(topics_df, opinion_df)
     #ps = []
     #for i in range(0, 101, 20):
     #    ps.append(sampler.topic_word_perplexity(index=i))
