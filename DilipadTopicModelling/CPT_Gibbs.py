@@ -292,8 +292,15 @@ class GibbsSampler():
 
         return start, end
 
-    def topic_word_perplexity(self, index=None):
+    def topic_word_perplexity(self, index=None, phi_topic=None):
         """Calculate topic word perplexity of the test set.
+
+        Parameters:
+            index : int (optional)
+                index of the parameter sample of phi topic to use for a single
+                point parameter estimate of phi topic (default nIter-1)
+            phi_topic : numpy array
+                Matrix containing (custom) parameter estimate of phi_topic
 
         Topic word perplexity is calculated using importance sampling, as in
         [Griffiths and Steyvers, 2004]. However, according to
@@ -303,10 +310,9 @@ class GibbsSampler():
         # TODO: implement more accurate estimate of perplexity
         logger.info('calculating topic word perplexity')
 
-        index = self._check_index(index)
-
         # load parameters
-        phi_topic = self.load_parameters(self.PHI_TOPIC, index=index)
+        if phi_topic is None:
+            phi_topic = self.get_phi_topic(index)
 
         # run Gibbs sampler to find estimates for theta of the test set
         s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=self.nIter)
