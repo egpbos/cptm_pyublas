@@ -200,9 +200,7 @@ class GibbsSampler():
 
     def estimate_parameters(self, index=None, start=None, end=None):
         """Default: return single point estimate of the last iteration"""
-        index = self._check_index(index)
-
-        self.document_topic_matrix = self.get_theta(index, start, end)
+        self.theta = self.get_theta(index, start, end)
         self.topics = self.get_phi_topic(index, start, end)
         self.opinions = self.get_phi_opinion(index, start, end)
 
@@ -255,10 +253,11 @@ class GibbsSampler():
             # retrieve parameters from memory
             if start and end:
                 for p in range(self.nPerspectives):
-                    phi_opinion[p] = np.mean(phi_opinion[p, start:end], axis=0)
+                    phi_opinion[p] = np.mean(self.phi_opinion[p][start:end],
+                                             axis=0)
                 return phi_opinion
             for p in range(self.nPerspectives):
-                phi_opinion[p] = np.mean(phi_opinion[p, index], axis=0)
+                phi_opinion[p] = np.mean(self.phi_opinion[p][index], axis=0)
             return phi_opinion
         elif hasattr(self, 'out_dir'):
             # retrieve parameters from file
