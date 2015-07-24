@@ -133,21 +133,21 @@ class GibbsSampler():
         """
         return np.searchsorted(np.cumsum(p), np.random.rand())
 
-    def theta_topic(self):
+    def calc_theta_topic(self):
         """Calculate theta based on the current word/topic assignments.
         """
         f1 = self.ndk+self.alpha
         f2 = np.sum(self.ndk, axis=1, keepdims=True)+self.nTopics*self.alpha
         return f1/f2
 
-    def phi_topic(self):
+    def calc_phi_topic(self):
         """Calculate phi based on the current word/topic assignments.
         """
         f1 = self.nkw+self.beta
         f2 = np.sum(self.nkw, axis=1, keepdims=True)+self.VT*self.beta
         return f1/f2
 
-    def phi_opinion(self, persp):
+    def calc_phi_opinion(self, persp):
         """Calculate phi based on the current word/topic assignments.
         """
         f1 = self.nrs[persp]+float(self.beta_o)
@@ -157,11 +157,11 @@ class GibbsSampler():
     def run(self):
         if not self.out_dir:
             # store all parameter samples in memory
-            theta_topic = np.zeros((self.nIter, self.DT, self.nTopics))
-            phi_topic = np.zeros((self.nIter, self.nTopics, self.VT))
+            self.theta_topic = np.zeros((self.nIter, self.DT, self.nTopics))
+            self.phi_topic = np.zeros((self.nIter, self.nTopics, self.VT))
 
-            phi_opinion = [np.zeros((self.nIter, self.nTopics, self.VO))
-                           for p in self.corpus.perspectives]
+            self.phi_opinion = [np.zeros((self.nIter, self.nTopics, self.VO))
+                                for p in self.corpus.perspectives]
 
         # variable to store nk for each iteration
         # nk is used for Contrastive Opinion Modeling
@@ -175,18 +175,18 @@ class GibbsSampler():
 
             # calculate theta and phi
             if not self.out_dir:
-                theta_topic[t] = self.theta_topic()
-                phi_topic[t] = self.phi_topic()
+                self.theta_topic[t] = self.calc_theta_topic()
+                self.phi_topic[t] = self.calc_phi_topic()
 
                 for p in range(self.nPerspectives):
-                    phi_opinion[p][t] = self.phi_opinion(p)
+                    self.phi_opinion[p][t] = self.calc_phi_opinion(p)
             else:
-                pd.DataFrame(self.theta_topic()). \
+                pd.DataFrame(self.calc_theta_topic()). \
                     to_csv(self.get_theta_file_name(t))
-                pd.DataFrame(self.phi_topic()). \
+                pd.DataFrame(self.calc_phi_topic()). \
                     to_csv(self.get_phi_topic_file_name(t))
                 for p in range(self.nPerspectives):
-                    pd.DataFrame(self.phi_opinion(p)). \
+                    pd.DataFrame(self.calc_phi_opinion(p)). \
                         to_csv(self.get_phi_opinion_file_name(p, t))
 
                 # save nk (for Contrastive Opinion Mining)
@@ -196,24 +196,101 @@ class GibbsSampler():
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
 
-        if not self.out_dir:
-            # calculate means of parameters in memory
-            phi_topic = np.mean(phi_topic, axis=0)
-            theta_topic = np.mean(theta_topic, axis=0)
-            for p in range(self.nPerspectives):
-                phi_opinion[p] = np.mean(phi_opinion[p], axis=0)
+        self.estimate_parameters()
+
+    def estimate_parameters(self, index=None, start=None, end=None):
+        """Default: return single point estimate of the last iteration"""
+        index = self._check_index(index)
+
+        self.document_topic_matrix = self.get_theta(index, start, end)
+        self.topics = self.get_phi_topic(index, start, end)
+        self.opinions = self.get_phi_opinion(index, start, end)
+
+    def get_theta(self, index=None, start=None, end=None):
+        index = self._check_index(index)
+        start, end = self._check_start_and_end(start=start, end=end)
+
+        if hasattr(self, 'theta_topic'):
+            # retrieve parameters from memory
+            if start and end:
+                return np.mean(self.theta_topic[start:end], axis=0)
+            return self.theta_topic[index]
+        elif hasattr(self, 'out_dir'):
+            # retrieve parameters from file
+            return self.load_parameters(self.THETA, index=index, start=start,
+                                        end=end)
         else:
-            # load numbers from files
-            theta_topic = self.load_parameters(self.THETA)
-            phi_topic = self.load_parameters(self.PHI_TOPIC)
-            phi_opinion = {}
+            # error: no parameter samples.
+            # TODO: properly handle this case
+            logger.error('no parameter samples found. Please run the Gibbs '
+                         'sampler before trying to retrieve paramters.')
+
+    def get_phi_topic(self, index=None, start=None, end=None):
+        index = self._check_index(index)
+        start, end = self._check_start_and_end(start=start, end=end)
+
+        if hasattr(self, 'phi_topic'):
+            # retrieve parameters from memory
+            if start and end:
+                return np.mean(self.phi_topic[start:end], axis=0)
+            return self.phi_topic[index]
+        elif hasattr(self, 'out_dir'):
+            # retrieve parameters from file
+            return self.load_parameters(self.PHI_TOPIC, index=index,
+                                        start=start, end=end)
+        else:
+            # error: no parameter samples.
+            # TODO: properly handle this case
+            logger.error('no parameter samples found. Please run the Gibbs '
+                         'sampler before trying to retrieve paramters.')
+
+    def get_phi_opinion(self, index=None, start=None, end=None):
+        index = self._check_index(index)
+        start, end = self._check_start_and_end(start=start, end=end)
+
+        phi_opinion = [np.zeros((self.nPerspectives, self.nTopics, self.VO))
+                       for p in self.corpus.perspectives]
+
+        if hasattr(self, 'phi_opinion'):
+            # retrieve parameters from memory
+            if start and end:
+                for p in range(self.nPerspectives):
+                    phi_opinion[p] = np.mean(phi_opinion[p, start:end], axis=0)
+                return phi_opinion
+            for p in range(self.nPerspectives):
+                phi_opinion[p] = np.mean(phi_opinion[p, index], axis=0)
+            return phi_opinion
+        elif hasattr(self, 'out_dir'):
+            # retrieve parameters from file
             for p in range(self.nPerspectives):
                 phi_opinion[p] = self.load_parameters(self.PHI_OPINION.
-                                                      format(p))
+                                                      format(p),
+                                                      index=index, start=start,
+                                                      end=end)
+            return phi_opinion
+        else:
+            # error: no parameter samples.
+            # TODO: properly handle this case
+            logger.error('no parameter samples found. Please run the Gibbs '
+                         'sampler before trying to retrieve paramters.')
 
-        self.topics = phi_topic
-        self.opinions = phi_opinion
-        self.theta = theta_topic
+    def _check_index(self, index=None):
+        if index is None:
+            index = self.nIter-1
+        if index == self.nIter:
+            logger.warn('requested index {}; setting it to {}'.format(index,
+                        self.nIter-1))
+            index = self.nIter-1
+        return index
+
+    def _check_start_and_end(self, start=None, end=None):
+        if start < 0 or start > self.nIter or start > end:
+            start = 0
+
+        if end < 0 or end > self.nIter:
+            end = self.nIter
+
+        return start, end
 
     def topic_word_perplexity(self, index=None):
         """Calculate topic word perplexity of the test set.
@@ -226,18 +303,13 @@ class GibbsSampler():
         # TODO: implement more accurate estimate of perplexity
         logger.info('calculating topic word perplexity')
 
-        if index is None:
-            index = self.nIter-1
-        if index >= self.nIter:
-            logger.warn('requested index to large ({}); setting it to {}'.
-                        format(index, self.nIter-1))
-            index = self.nIter-1
+        index = self._check_index(index)
 
         # load parameters
         phi_topic = self.load_parameters(self.PHI_TOPIC, index=index)
 
         # run Gibbs sampler to find estimates for theta of the test set
-        s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=1000)
+        s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=self.nIter)
         s._initialize(phi_topic=phi_topic)
         s.run()
 
@@ -308,8 +380,7 @@ class GibbsSampler():
         return np.exp(-(np.sum(log_p_ods) / np.sum(notds)))
 
     def load_parameters(self, name, index=None, start=None, end=None):
-        if index < 0 or index > self.nIter:
-            index = None
+        index = self._check_index(index)
 
         if index:
             logger.info('loading parameter file {}'.
