@@ -429,7 +429,8 @@ class GibbsSampler():
     def get_parameter_dir_name(self):
         return self.PARAMETER_DIR.format(self.out_dir)
 
-    def print_topics_and_opinions(self, topics, opinions, top=10):
+    def print_topics_and_opinions(self, topics, opinions, top=10,
+                                  threshold=0.0):
         """Print topics and associated opinions.
 
         Parameters:
@@ -440,22 +441,23 @@ class GibbsSampler():
         """
         for i in range(self.nTopics):
             print u'Topic #{}: {}'. \
-                  format(i, self.print_topic(topics.loc[:, i].copy(), top))
+                  format(i, self.print_topic(topics.loc[:, i].copy(), top=top,
+                                             threshold=threshold))
             print
             for p in range(self.nPerspectives):
                 print u'Opinion {}: {}'. \
                       format(self.corpus.perspectives[p].name,
                              self.print_topic(opinions[p].loc[:, i].copy(),
-                                              top))
+                                              top=top, threshold=threshold))
             print '-----'
             print
 
-    def print_topic(self, series, top=10):
+    def print_topic(self, series, top=10, threshold=0.0):
         """Prints the top 10 words in the topic/opinion on a single line."""
         s = series.copy()
         s.sort(ascending=False)
         t = [u'{} ({:.4f})'.format(word, p)
-             for word, p in s[0:top].iteritems()]
+             for word, p in s[0:top].iteritems() if p > threshold]
         return u' - '.join(t)
 
     def topics_to_df(self, phi, words):
@@ -575,11 +577,10 @@ if __name__ == '__main__':
 
     topics_df = sampler.topics_to_df(sampler.get_phi_topic(),
                                      sampler.corpus.topic_words())
-    opinion_df = []
-    for p in range(sampler.nPerspectives):
-        opinion_df.append(sampler.topics_to_df(sampler.get_phi_opinion()[p],
-                                               sampler.corpus.opinion_words()))
-    sampler.print_topics_and_opinions(topics_df, opinion_df)
+    opinion_df = [sampler.topics_to_df(sampler.get_phi_opinion()[p],
+                                       sampler.corpus.opinion_words())
+                  for p in range(sampler.nPerspectives)]
+    sampler.print_topics_and_opinions(topics_df, opinion_df, threshold=0.09)
     #ps = []
     #for i in range(0, 101, 20):
     #    ps.append(sampler.topic_word_perplexity(index=i))
