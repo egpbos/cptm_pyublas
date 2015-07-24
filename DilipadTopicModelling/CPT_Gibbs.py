@@ -296,7 +296,7 @@ class GibbsSampler():
         """Calculate topic word perplexity of the test set.
 
         Topic word perplexity is calculated using importance sampling, as in
-        [Griffiths and Steyvers, 2004]. However, aAccording to
+        [Griffiths and Steyvers, 2004]. However, according to
         [Wallach et al. 2009], this does not always result in an accurate
         estimate of the perplexity.
         """
