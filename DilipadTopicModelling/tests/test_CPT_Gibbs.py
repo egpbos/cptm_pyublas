@@ -1,4 +1,4 @@
-from nose.tools import assert_equal
+from nose.tools import assert_equal, assert_true, assert_false
 
 from .. import generateCPTCorpus
 from .. import CPTCorpus
@@ -6,6 +6,7 @@ import shutil
 from DilipadTopicModelling.CPT_Gibbs import GibbsSampler
 from pandas import DataFrame
 from numpy.testing import assert_almost_equal
+from numpy import array
 import os.path
 
 
@@ -133,3 +134,70 @@ def test_check_start_and_end():
     start, end = sampler._check_start_and_end(3, 2)
     yield assert_equal, start, 0
     yield assert_equal, end, 2
+
+
+def test_get_phi_topic_from_memory():
+    sampler2 = GibbsSampler(corpus, nTopics=3, nIter=5)
+    sampler2._initialize()
+    sampler2.run()
+
+    f = sampler2.get_phi_topic_file_name(0)
+    yield assert_false, os.path.isfile(f)
+
+    phi = sampler2.get_phi_topic()
+    yield assert_equal, phi.shape, (sampler2.nTopics, sampler2.VT)
+
+    phi = sampler2.get_phi_topic(index=2)
+    yield assert_equal, phi.shape, (sampler2.nTopics, sampler2.VT)
+
+    phi = sampler2.get_phi_topic(start=0, end=5)
+    yield assert_equal, phi.shape, (sampler2.nTopics, sampler2.VT)
+
+
+def test_get_theta_from_memory():
+    sampler2 = GibbsSampler(corpus, nTopics=3, nIter=5)
+    sampler2._initialize()
+    sampler2.run()
+
+    f = sampler2.get_theta_file_name(0)
+    yield assert_false, os.path.isfile(f)
+
+    r = sampler2.get_theta()
+    yield assert_equal, r.shape, (sampler2.DT, sampler2.nTopics)
+
+    r = sampler2.get_theta(index=2)
+    yield assert_equal, r.shape, (sampler2.DT, sampler2.nTopics)
+
+    r = sampler2.get_theta(start=0, end=5)
+    yield assert_equal, r.shape, (sampler2.DT, sampler2.nTopics)
+
+
+def test_get_phi_opinion_from_memory():
+    sampler2 = GibbsSampler(corpus, nTopics=3, nIter=5)
+    sampler2._initialize()
+    sampler2.run()
+
+    f = sampler2.get_phi_opinion_file_name(0, 0)
+    yield assert_false, os.path.isfile(f)
+
+    phi = sampler2.get_phi_opinion()
+    yield assert_equal, len(phi), sampler2.nPerspectives
+    yield assert_equal, phi[0].shape, (sampler2.nTopics, sampler2.VO)
+
+    phi = sampler2.get_phi_opinion(index=2)
+    yield assert_equal, len(phi), sampler2.nPerspectives
+    yield assert_equal, phi[0].shape, (sampler2.nTopics, sampler2.VO)
+
+    phi = sampler2.get_phi_opinion(start=0, end=5)
+    yield assert_equal, len(phi), sampler2.nPerspectives
+    yield assert_equal, phi[0].shape, (sampler2.nTopics, sampler2.VO)
+
+
+def test_topic_word_perplexity():
+    """Minimal test of caluclation of topic word perplexity"""
+    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20)
+    sampler2 = GibbsSampler(corpus2, nTopics=3, nIter=5, out_dir=out_dir)
+    perp = sampler2.topic_word_perplexity()
+
+    yield assert_true, perp > 0.0
+    yield assert_true, perp < len(sampler2.corpus.topicDictionary)
