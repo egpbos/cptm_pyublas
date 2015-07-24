@@ -257,7 +257,7 @@ class GibbsSampler():
                                              axis=0)
                 return phi_opinion
             for p in range(self.nPerspectives):
-                phi_opinion[p] = np.mean(self.phi_opinion[p][index], axis=0)
+                phi_opinion[p] = self.phi_opinion[p][index]
             return phi_opinion
         elif hasattr(self, 'out_dir'):
             # retrieve parameters from file
@@ -455,16 +455,6 @@ class GibbsSampler():
              for word, p in s[0:top].iteritems()]
         return u' - '.join(t)
 
-    def to_df(self, data, words=None):
-        if not words:
-            # theta (topic document matrix)
-            df = pd.DataFrame(data)
-        else:
-            # phi (topics and opinions)
-            df = pd.DataFrame(data, columns=words)
-            df = df.transpose()
-        return df
-
     def topics_and_opinions_to_csv(self):
         # TODO: fix case when self.topics and/or self.opinions do not exist
 
@@ -558,24 +548,25 @@ if __name__ == '__main__':
     #logger.setLevel(logging.DEBUG)
     logger.setLevel(logging.INFO)
 
-    files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
-    #files = glob.glob('/home/jvdzwaan/data/tmp/test/*')
+    #files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
+    files = glob.glob('/home/jvdzwaan/data/tmp/test/*')
     #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
-    #out_dir = '/home/jvdzwaan/data/tmp/generated/test/'
-    out_dir = '/home/jvdzwaan/data/tmp/dilipad/test_perplexity/'
+    out_dir = '/home/jvdzwaan/data/tmp/generated/test/'
+    #out_dir = '/home/jvdzwaan/data/tmp/dilipad/test_perplexity/'
 
-    #corpus = CPTCorpus.CPTCorpus(files, testSplit=20)
+    corpus = CPTCorpus.CPTCorpus(files, testSplit=20)
     #corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
     #corpus.save_dictionaries(directory=out_dir)
     #corpus.save('{}corpus.json'.format(out_dir))
-    corpus = CPTCorpus.CPTCorpus.load('{}corpus.json'.format(out_dir),
-                                      topicDict='{}/topicDict.dict'.format(out_dir),
-                                      opinionDict='{}/opinionDict.dict'.format(out_dir))
-    sampler = GibbsSampler(corpus, nTopics=30, nIter=100, out_dir=out_dir)
+    #corpus = CPTCorpus.CPTCorpus.load('{}corpus.json'.format(out_dir),
+    #                                  topicDict='{}/topicDict.dict'.format(out_dir),
+    #                                  opinionDict='{}/opinionDict.dict'.format(out_dir))
+    #sampler = GibbsSampler(corpus, nTopics=30, nIter=100, out_dir=out_dir)
+    sampler = GibbsSampler(corpus, nTopics=3, nIter=10)
     #sampler = GibbsSampler(corpus, nTopics=100, nIter=2)
-    #sampler._initialize()
-    #sampler.run()
-    ps = []
-    for i in range(0, 101, 20):
-        ps.append(sampler.topic_word_perplexity(index=i))
-    print ps
+    sampler._initialize()
+    sampler.run()
+    #ps = []
+    #for i in range(0, 101, 20):
+    #    ps.append(sampler.topic_word_perplexity(index=i))
+    #print ps
