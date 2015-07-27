@@ -7,8 +7,11 @@ from CPT_Gibbs import GibbsSampler
 
 
 def run_sampler(corpus, nTopics, nIter, beta, out_dir):
+    alpha = 50.0/nTopics
+    logger.info('running Gibbs sampler (nTopics: {}, nIter: {}, alpha: {}, '
+                'beta: {})'.format(nTopics, nIter, alpha, beta))
     sampler = GibbsSampler(corpus, nTopics=nTopics, nIter=nIter,
-                           alpha=(50.0/nTopics), beta=beta, beta_o=beta,
+                           alpha=alpha, beta=beta, beta_o=beta,
                            out_dir=out_dir.format(nTopics))
     sampler._initialize()
     sampler.run()
