@@ -130,10 +130,11 @@ def test_check_end():
 
 def test_check_start_and_end():
     """Test _check_start_and_end with values for start and end"""
-    # start > end
-    start, end = sampler._check_start_and_end(3, 2)
-    yield assert_equal, start, 0
-    yield assert_equal, end, 2
+    values = [((None, None), (None, None)), ((3, 2), (0, 2))]
+    for (start_in, end_in), (start_out, end_out) in values:
+        start, end = sampler._check_start_and_end(start_in, end_in)
+        yield assert_equal, start, start_out
+        yield assert_equal, end, end_out
 
 
 def test_get_phi_topic_from_memory():

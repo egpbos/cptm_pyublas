@@ -250,7 +250,7 @@ class GibbsSampler():
                        for p in self.corpus.perspectives]
 
         if hasattr(self, 'phi_opinion'):
-            # retrieve parameters from memory
+            logger.debug('retrieving phi opinion from memory')
             if start and end:
                 for p in range(self.nPerspectives):
                     phi_opinion[p] = np.mean(self.phi_opinion[p][start:end],
@@ -260,7 +260,7 @@ class GibbsSampler():
                 phi_opinion[p] = self.phi_opinion[p][index]
             return phi_opinion
         elif hasattr(self, 'out_dir'):
-            # retrieve parameters from file
+            logger.debug('retrieving phi opinion from from file')
             for p in range(self.nPerspectives):
                 phi_opinion[p] = self.load_parameters(self.PHI_OPINION.
                                                       format(p),
@@ -283,6 +283,8 @@ class GibbsSampler():
         return index
 
     def _check_start_and_end(self, start=None, end=None):
+        if start is None and end is None:
+            return start, end
         if start < 0 or start > self.nIter or start > end:
             start = 0
 
@@ -386,28 +388,24 @@ class GibbsSampler():
 
     def load_parameters(self, name, index=None, start=None, end=None):
         index = self._check_index(index)
+        start, end = self._check_start_and_end(start, end)
 
-        if index:
+        if start and end:
+            data = None
+            for i in range(start, end):
+                ar = pd.read_csv(self.get_parameter_file_name(name, i),
+                                 index_col=0).as_matrix()
+                if data is None:
+                    data = np.array([ar])
+                else:
+                    data = np.append(data, np.array([ar]), axis=0)
+            return np.mean(data, axis=0)
+
+        if not index is None:
             logger.info('loading parameter file {}'.
                         format(self.get_parameter_file_name(name, index)))
             return pd.read_csv(self.get_parameter_file_name(name, index),
                                index_col=0).as_matrix()
-
-        if start < 0 or start > self.nIter or start > end:
-            start = 0
-
-        if end < 0 or end > self.nIter or end < start:
-            end = self.nIter
-
-        data = None
-        for i in range(start, end):
-            ar = pd.read_csv(self.get_parameter_file_name(name, i),
-                             index_col=0).as_matrix()
-            if data is None:
-                data = np.array([ar])
-            else:
-                data = np.append(data, np.array([ar]), axis=0)
-        return np.mean(data, axis=0)
 
     def get_phi_topic_file_name(self, number):
         return self.get_parameter_file_name(self.PHI_TOPIC, number)
