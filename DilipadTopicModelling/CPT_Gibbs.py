@@ -386,28 +386,24 @@ class GibbsSampler():
 
     def load_parameters(self, name, index=None, start=None, end=None):
         index = self._check_index(index)
+        start, end = self._check_start_and_end(start, end)
+
+        if start and end:
+            data = None
+            for i in range(start, end):
+                ar = pd.read_csv(self.get_parameter_file_name(name, i),
+                                 index_col=0).as_matrix()
+                if data is None:
+                    data = np.array([ar])
+                else:
+                    data = np.append(data, np.array([ar]), axis=0)
+            return np.mean(data, axis=0)
 
         if index:
             logger.info('loading parameter file {}'.
                         format(self.get_parameter_file_name(name, index)))
             return pd.read_csv(self.get_parameter_file_name(name, index),
                                index_col=0).as_matrix()
-
-        if start < 0 or start > self.nIter or start > end:
-            start = 0
-
-        if end < 0 or end > self.nIter or end < start:
-            end = self.nIter
-
-        data = None
-        for i in range(start, end):
-            ar = pd.read_csv(self.get_parameter_file_name(name, i),
-                             index_col=0).as_matrix()
-            if data is None:
-                data = np.array([ar])
-            else:
-                data = np.append(data, np.array([ar]), axis=0)
-        return np.mean(data, axis=0)
 
     def get_phi_topic_file_name(self, number):
         return self.get_parameter_file_name(self.PHI_TOPIC, number)
