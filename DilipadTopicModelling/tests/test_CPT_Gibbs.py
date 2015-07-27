@@ -6,7 +6,7 @@ import shutil
 from DilipadTopicModelling.CPT_Gibbs import GibbsSampler
 from pandas import DataFrame
 from numpy.testing import assert_almost_equal
-from numpy import array
+from numpy import inf
 import os.path
 
 
@@ -130,10 +130,11 @@ def test_check_end():
 
 def test_check_start_and_end():
     """Test _check_start_and_end with values for start and end"""
-    # start > end
-    start, end = sampler._check_start_and_end(3, 2)
-    yield assert_equal, start, 0
-    yield assert_equal, end, 2
+    values = [((None, None), (None, None)), ((3, 2), (0, 2))]
+    for (start_in, end_in), (start_out, end_out) in values:
+        start, end = sampler._check_start_and_end(start_in, end_in)
+        yield assert_equal, start, start_out
+        yield assert_equal, end, end_out
 
 
 def test_get_phi_topic_from_memory():
@@ -193,11 +194,15 @@ def test_get_phi_opinion_from_memory():
     yield assert_equal, phi[0].shape, (sampler2.nTopics, sampler2.VO)
 
 
-def test_topic_word_perplexity():
-    """Minimal test of caluclation of topic word perplexity"""
+def test_perplexity():
+    """Minimal test of perplexity caluclation"""
     corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20)
-    sampler2 = GibbsSampler(corpus2, nTopics=3, nIter=5, out_dir=out_dir)
-    perp = sampler2.topic_word_perplexity()
+    sampler2 = GibbsSampler(corpus2, nTopics=3, nIter=5)
+    sampler2._initialize()
+    sampler2.run()
+    tw_perp, ow_perp = sampler2.perplexity()
 
-    yield assert_true, perp > 0.0
-    yield assert_true, perp < len(sampler2.corpus.topicDictionary)
+    yield assert_true, tw_perp > 0.0
+    yield assert_true, tw_perp < inf
+    yield assert_true, ow_perp > 0.0
+    yield assert_true, ow_perp < inf
