@@ -293,66 +293,33 @@ class GibbsSampler():
 
         return start, end
 
-    def topic_word_perplexity(self, index=None, phi_topic=None):
-        """Calculate topic word perplexity of the test set.
+    def perplexity(self, index=None, phi_topic=None, phi_opinion=None):
+        """Calculate topic word and opinion word perplexity of the test set.
 
         Parameters:
             index : int (optional)
                 index of the parameter sample of phi topic to use for a single
                 point parameter estimate of phi topic (default nIter-1)
-            phi_topic : numpy array
-                Matrix containing (custom) parameter estimate of phi_topic
+            phi_topic : ndarray (optional)
+                phi_topic is used to initialize the Gibbs sampler to determine
+                theta for the test set
+            phi_opinion : ndarray (optional)
+                phi_opinion provides estimates of p(o_i|z_i=k)
+
+        Returns:
+            topic word perplexity : float
+            opinion word perplexity : float
 
         Topic word perplexity is calculated using importance sampling, as in
         [Griffiths and Steyvers, 2004]. However, according to
         [Wallach et al. 2009], this does not always result in an accurate
         estimate of the perplexity.
+
+        Opinion word perplexity is calculated as described in [Fang et al.,
+        2012] section 5.1.1.
         """
         # TODO: implement more accurate estimate of perplexity
-        logger.info('calculating topic word perplexity')
-
-        # load parameters
-        if phi_topic is None:
-            phi_topic = self.get_phi_topic(index)
-
-        # run Gibbs sampler to find estimates for theta of the test set
-        s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=self.nIter)
-        s._initialize(phi_topic=phi_topic)
-        s.run()
-
-        # calculate perplexity
-        total_topic_words_in_test_documents = 0
-        log_p_w = 0.0
-
-        for d, persp, d_p, doc in self.corpus.testSet():
-            for w_id, freq in doc['topic']:
-                total_topic_words_in_test_documents += freq
-                log_p_w += freq * np.log(np.sum(s.theta[d]*phi_topic[:, w_id]))
-
-        perp = np.exp(-log_p_w/total_topic_words_in_test_documents)
-        return perp
-
-    def opinion_word_perplexity(self, index=None, phi_topic=None,
-                                phi_opinion=None):
-        """Calculate perplexity for opinion words in the test set.
-
-        Implements perplexity calculation as described in [Fang et al., 2012]
-        section 5.1.1.
-
-        Parameter:
-            index : int
-                The index of the parameter samples to use. Default: the last
-                one (nIter-1).
-            phi_topic : ndarray
-                phi_topic is used to initialize the Gibbs sampler to determine
-                theta for the test set
-            phi_opinion : ndarray
-                phi_opinion provides estimates of p(o_i|z_i=k)
-
-        Returns:
-            opinion perplexity : float
-        """
-        logger.info('calculating opinion word perplexity')
+        logger.info('calculating perplexity')
 
         # load parameters
         if phi_topic is None:
@@ -361,25 +328,33 @@ class GibbsSampler():
         if phi_opinion is None:
             phi_opinion = self.get_phi_opinion(index)
 
-        # run Gibbs sampler to find estimates for P(z_i = k|d) for documents in
-        # the test set
+        # run Gibbs sampler to find estimates for theta of the test set
         s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=self.nIter)
         s._initialize(phi_topic=phi_topic)
         s.run()
 
-        # calculate perplexity
+        # topic word perplexity
+        total_topic_words_in_test_documents = 0
+        log_p_w = 0.0
+
+        # opinion word perplexity
         total_opinion_words_in_test_documents = 0
         log_p_od = 0.0
 
         for d, persp, d_p, doc in self.corpus.testSet():
+            for w_id, freq in doc['topic']:
+                total_topic_words_in_test_documents += freq
+                log_p_w += freq * np.log(np.sum(s.theta[d]*phi_topic[:, w_id]))
+
             for w_id, freq in doc['opinion']:
-                print w_id
                 total_opinion_words_in_test_documents += freq
                 f1 = np.log(np.sum(s.theta[d]*phi_opinion[persp][:, w_id]))
                 log_p_od += freq * f1
 
-        perp = np.exp(-log_p_od/total_opinion_words_in_test_documents)
-        return perp
+        tw_perp = np.exp(-log_p_w/total_topic_words_in_test_documents)
+        ow_perp = np.exp(-log_p_od/total_opinion_words_in_test_documents)
+
+        return tw_perp, ow_perp
 
     def load_parameters(self, name, index=None, start=None, end=None):
         index = self._check_index(index)
@@ -579,5 +554,5 @@ if __name__ == '__main__':
     #sampler.print_topics_and_opinions(topics_df, opinion_df, threshold=0.09)
     ps = []
     for i in range(0, 11):
-        ps.append(sampler.opinion_word_perplexity(index=i))
+        ps.append(sampler.perplexity(index=i))
     print ps
