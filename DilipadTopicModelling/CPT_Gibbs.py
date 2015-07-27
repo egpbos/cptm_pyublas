@@ -477,7 +477,7 @@ class GibbsSampler():
         self.nks = pd.read_csv(self.get_nks_file_name(), index_col=0).values
 
         # TODO: fix case when word not in topicDictionary
-        query_word_id = self.corpus.topicDictionary.doc2bow([query])[0][0]
+        query_word_id = self.corpus.topicDictionary.token2id[query]
         print query_word_id
 
         words = self.corpus.opinion_words()
