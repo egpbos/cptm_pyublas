@@ -484,7 +484,6 @@ class GibbsSampler():
 
         # TODO: fix case when word not in topicDictionary
         query_word_id = self.corpus.topicDictionary.token2id[query]
-        print query_word_id
 
         words = self.corpus.opinion_words()
         result = pd.DataFrame(np.zeros((self.VO, self.nPerspectives)), words)
