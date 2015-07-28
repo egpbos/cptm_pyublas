@@ -1,9 +1,14 @@
 import pandas as pd
 import logging
+from multiprocessing import Pool
 
 from CPTCorpus import CPTCorpus
 from CPT_Gibbs import GibbsSampler
 
+
+def calculate_perplexity(sampler, index):
+    tw_perp, ow_perp = sampler.perplexity(index=index)
+    return index, tw_perp, ow_perp
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
@@ -33,9 +38,11 @@ for n in nTopics:
     sampler._initialize()
     sampler.run()
 
-    for s in nPerplexity:
-        tw_perp, ow_perp = sampler.perplexity(index=s)
+    pool = Pool(processes=len(nPerplexity))
+    results = [pool.apply(calculate_perplexity, args=(sampler, s))
+               for s in nPerplexity]
 
+    for s, tw_perp, ow_perp in results:
         topic_perp.set_value(s, n, tw_perp)
         opinion_perp.set_value(s, n, ow_perp)
 
