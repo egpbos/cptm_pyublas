@@ -6,9 +6,21 @@ from CPTCorpus import CPTCorpus
 from CPT_Gibbs import GibbsSampler
 
 
-def calculate_perplexity(sampler, index):
-    tw_perp, ow_perp = sampler.perplexity(index=index)
-    return index, tw_perp, ow_perp
+def calculate_perplexity(corpus, nTopics, nIter, beta, out_dir, nPerplexity):
+    alpha = 50.0/nTopics
+    logger.info('running Gibbs sampler (nTopics: {}, nIter: {}, alpha: {}, '
+                'beta: {})'.format(nTopics, nIter, alpha, beta))
+    sampler = GibbsSampler(corpus, nTopics=nTopics, nIter=nIter,
+                           alpha=alpha, beta=beta, beta_o=beta,
+                           out_dir=out_dir.format(nTopics))
+    sampler._initialize()
+    #sampler.run()
+    results = []
+    for s in nPerplexity:
+        tw_perp, ow_perp = sampler.perplexity(index=s)
+        results.append((nTopics, s, tw_perp, ow_perp))
+    return results
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
@@ -30,19 +42,13 @@ nPerplexity = range(0, nIter+1, 10)
 topic_perp = pd.DataFrame(columns=nTopics, index=nPerplexity)
 opinion_perp = pd.DataFrame(columns=nTopics, index=nPerplexity)
 
-for n in nTopics:
-    # load sampler
-    sampler = GibbsSampler(corpus, nTopics=n, nIter=nIter, alpha=(50.0/n),
-                           beta=beta, beta_o=beta,
-                           out_dir=out_dir.format(n))
-    sampler._initialize()
-    sampler.run()
+pool = Pool(processes=4)
+results = [pool.apply(calculate_perplexity, args=(corpus, n, nIter, beta,
+                                                  out_dir, nPerplexity))
+           for n in nTopics]
 
-    pool = Pool(processes=len(nPerplexity))
-    results = [pool.apply(calculate_perplexity, args=(sampler, s))
-               for s in nPerplexity]
-
-    for s, tw_perp, ow_perp in results:
+for result in results:
+    for n, s, tw_perp, ow_perp in result:
         topic_perp.set_value(s, n, tw_perp)
         opinion_perp.set_value(s, n, ow_perp)
 
