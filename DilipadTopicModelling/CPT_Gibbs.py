@@ -156,6 +156,7 @@ class GibbsSampler():
         return f1/f2
 
     def run(self):
+        logger.info('started sampling')
         if not self.out_dir:
             # store all parameter samples in memory
             self.theta_topic = np.zeros((self.nIter, self.DT, self.nTopics))
@@ -196,6 +197,8 @@ class GibbsSampler():
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
+
+        logger.info('finished sampling')
 
         self.estimate_parameters()
 

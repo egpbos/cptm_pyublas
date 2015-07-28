@@ -254,12 +254,14 @@ class CPTCorpus():
         return file_dict
 
     def save(self, file_name):
+        logger.info('saving corpus under {}'.format(file_name))
         file_dict = self.get_files_in_train_and_test_sets()
         with open(file_name, 'wb') as f:
             json.dump(file_dict, f, sort_keys=True, indent=4)
 
     @classmethod
     def load(self, file_name, topicDict=None, opinionDict=None):
+        logger.info('loading corpus from {}'.format(file_name))
         with open(file_name, 'rb') as f:
             file_dict = json.load(f)
         return self(file_dict=file_dict, topicDict=topicDict,
@@ -286,6 +288,8 @@ class Perspective():
             self.trainSet = Corpus(self.trainFiles)
 
             self.name = self.persp_name(self.trainSet.input[0])
+            logger.info('initialize perspective "{}" from file_dict'
+                        .format(self.name))
         else:
             self.name = self.persp_name(input[0])
             logger.info('initialize perspective "{}" ({} documents)'
