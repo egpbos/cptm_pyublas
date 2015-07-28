@@ -56,6 +56,7 @@ class GibbsSampler():
 
     def _initialize(self, phi_topic=None):
         """Initializes the Gibbs sampler."""
+        logger.info('started initialization')
 
         if not isinstance(phi_topic, np.ndarray):
             logger.debug('working with train set')
@@ -119,7 +120,7 @@ class GibbsSampler():
                 self.x[persp][d_p, i] = opinion
                 self.nrs[persp, opinion, w_id] += 1
                 self.ns[persp, opinion] += 1
-        logger.debug('Finished initialization.')
+        logger.info('finished initialization')
 
     def sample_from(self, p):
         """Sample (new) topic from multinomial distribution p.
@@ -169,7 +170,7 @@ class GibbsSampler():
 
         for t in range(self.nIter):
             t1 = time.clock()
-            logger.debug('Iteration {} of {}'.format(t+1, self.nIter))
+            logger.debug('iteration {} of {}'.format(t+1, self.nIter))
 
             gibbs_inner(self)
 
@@ -200,6 +201,8 @@ class GibbsSampler():
 
     def estimate_parameters(self, index=None, start=None, end=None):
         """Default: return single point estimate of the last iteration"""
+        logger.debug('estimating parameters (index: {}, start: {}, end: {})'
+                     .format(index, start, end))
         self.theta = self.get_theta(index, start, end)
         self.topics = self.get_phi_topic(index, start, end)
         self.opinions = self.get_phi_opinion(index, start, end)
@@ -209,12 +212,12 @@ class GibbsSampler():
         start, end = self._check_start_and_end(start=start, end=end)
 
         if hasattr(self, 'theta_topic'):
-            # retrieve parameters from memory
+            logger.debug('retrieving theta from memory')
             if start and end:
                 return np.mean(self.theta_topic[start:end], axis=0)
             return self.theta_topic[index]
         elif hasattr(self, 'out_dir'):
-            # retrieve parameters from file
+            logger.debug('retrieving theta from file')
             return self.load_parameters(self.THETA, index=index, start=start,
                                         end=end)
         else:
@@ -228,12 +231,12 @@ class GibbsSampler():
         start, end = self._check_start_and_end(start=start, end=end)
 
         if hasattr(self, 'phi_topic'):
-            # retrieve parameters from memory
+            logger.debug('retrieving phi topic from memory')
             if start and end:
                 return np.mean(self.phi_topic[start:end], axis=0)
             return self.phi_topic[index]
         elif hasattr(self, 'out_dir'):
-            # retrieve parameters from file
+            logger.debug('retrieving phi topic from file')
             return self.load_parameters(self.PHI_TOPIC, index=index,
                                         start=start, end=end)
         else:
@@ -447,6 +450,7 @@ class GibbsSampler():
             pandas DataFrame
                 containing words x probabilities
         """
+        logger.debug('creating dataframe with topics')
         df = pd.DataFrame(phi, columns=words)
         df = df.transpose()
         return df
@@ -468,9 +472,11 @@ class GibbsSampler():
 
         Returns:
             pandas DataFrame
-            The index of the DataFrame are the topic words and the columns
+            The index of the DataFrame contains the topic words and the columns
             represent the perspectives.
         """
+        logger.debug('calculating contrastive opinions')
+
         # TODO: allow the user to specify index or range of the parameters to use
         phi_topic = self.load_parameters(self.PHI_TOPIC, index=self.nIter-1)
 
@@ -515,6 +521,8 @@ class GibbsSampler():
             The Jensen-Shannon divergence between the contrastive opinions.
 
         """
+        logger.debug('calculate Jensen-Shannon divergence between contrastive '
+                     'opinions')
         co = co_df.values
         result = np.zeros(self.nPerspectives, dtype=np.float)
         p_avg = np.mean(co, axis=1)
