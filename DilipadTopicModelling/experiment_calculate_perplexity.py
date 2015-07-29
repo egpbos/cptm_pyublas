@@ -51,9 +51,12 @@ results = [pool.apply_async(calculate_perplexity, args=(corpus, n, nIter, beta,
            # reverse list, so longest calculation is started first
            for n in nTopics[::-1]]
 pool.close()
+logger.info('called pool.close()')
 pool.join()
+logger.info('called pool.join()')
 
 data = [p.get() for p in results]
+logger.info('created data')
 
 for result in data:
     for n, s, tw_perp, ow_perp in result:
