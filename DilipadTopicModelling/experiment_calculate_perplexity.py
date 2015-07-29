@@ -20,6 +20,8 @@ def calculate_perplexity(corpus, nTopics, nIter, beta, out_dir, nPerplexity):
         logger.info('doing perplexity calculation ({}, {})'.format(nTopics, s))
         tw_perp, ow_perp = sampler.perplexity(index=s)
         results.append((nTopics, s, tw_perp, ow_perp))
+    logger.info('finished perplexity calculation for {} topics'.
+                format(nTopics))
     return results
 
 
@@ -43,16 +45,17 @@ nPerplexity = range(0, nIter+1, 10)
 topic_perp = pd.DataFrame(columns=nTopics, index=nPerplexity)
 opinion_perp = pd.DataFrame(columns=nTopics, index=nPerplexity)
 
-pool = Pool(processes=4)
-results = [pool.apply(calculate_perplexity, args=(corpus, n, nIter, beta,
-                                                  out_dir, nPerplexity))
-           for n in nTopics]
+pool = Pool(processes=len(nTopics))
+results = [pool.apply_async(calculate_perplexity, args=(corpus, n, nIter, beta,
+                                                        out_dir, nPerplexity))
+           # reverse list, so longest calculation is started first
+           for n in nTopics[::-1]]
 pool.close()
 pool.join()
 
-#data = [p.get() for p in results]
+data = [p.get() for p in results]
 
-for result in results:
+for result in data:
     for n, s, tw_perp, ow_perp in result:
         topic_perp.set_value(s, n, tw_perp)
         opinion_perp.set_value(s, n, ow_perp)
