@@ -336,7 +336,8 @@ class GibbsSampler():
             phi_opinion = self.get_phi_opinion(index)
 
         # run Gibbs sampler to find estimates for theta of the test set
-        s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=self.nIter)
+        s = GibbsSampler(self.corpus, nTopics=self.nTopics, nIter=self.nIter,
+                         alpha=self.alpha, beta=self.beta, beta_o=self.beta_o)
         s._initialize(phi_topic=phi_topic)
         s.run()
 
