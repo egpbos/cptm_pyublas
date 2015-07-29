@@ -532,6 +532,11 @@ class GibbsSampler():
             result[persp] = entropy(co[:, persp], p_avg)
         return np.mean(result)
 
+    def __str__(self):
+        return 'CPT GibbsSampler: {} perspectives, {} topics,  {} ' \
+               'iterations, alpha: {}, beta: {}, beta_o: {}'. \
+               format(self.nPerspectives, self.nTopics, self.nIter,
+                      self.alpha, self.beta, self.beta_o)
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
@@ -555,6 +560,8 @@ if __name__ == '__main__':
     #sampler = GibbsSampler(corpus, nTopics=100, nIter=2)
     sampler._initialize()
     sampler.run()
+
+    print sampler
 
     #topics_df = sampler.topics_to_df(sampler.get_phi_topic(),
     #                                 sampler.corpus.topic_words())

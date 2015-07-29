@@ -65,6 +65,11 @@ class CPTCorpus():
 
         self.testSplit = testSplit
 
+    def __str__(self):
+        perspectives = [str(p) for p in self.perspectives]
+        return 'CPTCorpus with {} perspectives: {}'.format(
+               len(self.perspectives), ', '.join(perspectives))
+
     def _create_corpus_wide_dictionaries(self):
         """Create dictionaries with all topic and opinion words.
 
@@ -281,7 +286,7 @@ class Perspective():
     """
     def __init__(self, input=None, testSplit=None, file_dict=None):
         if not file_dict is None:
-            self.testFiles = file_dict.get('test')
+            self.testFiles = file_dict.get('test', [])
             self.testSet = Corpus(self.testFiles)
 
             self.trainFiles = file_dict.get('train')
@@ -309,7 +314,7 @@ class Perspective():
                 random.shuffle(input)
                 self.testFiles = input[:splitIndex]
                 input = input[splitIndex:]
-                self.testSet = Corpus(self.testFiles)
+            self.testSet = Corpus(self.testFiles)
 
             self.trainFiles = input
             self.trainSet = Corpus(self.trainFiles)
@@ -328,6 +333,10 @@ class Perspective():
 
     def __len__(self):
         return len(self.trainSet)
+
+    def __str__(self):
+        return '{} (train set: {} documents, test set: {} documents)'. \
+               format(self.name, len(self.trainSet), len(self.testSet))
 
     def corpus(self, testSet=None):
         if isinstance(testSet, np.ndarray):
@@ -387,20 +396,24 @@ class PartialCorpus(corpora.TextCorpus):
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
-    files = glob.glob('/home/jvdzwaan/data/dilipad/generated/p*')
+    files = glob.glob('/home/jvdzwaan/data/tmp/test/p*')
     #files = glob.glob('/home/jvdzwaan/data/dilipad/perspectives/*')
     #files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
     files.sort()
     #print '\n'.join(files)
     out_dir = '/home/jvdzwaan/data/tmp/dilipad/test_parameters'
 
-    corpus = CPTCorpus(files, testSplit=40)
+    corpus = CPTCorpus(files)
     #corpus.save_dictionaries(directory=out_dir)
     c = os.path.join(out_dir, 'corpus.json')
     corpus.save(os.path.join(out_dir, 'corpus.json'))
     print corpus.get_files_in_train_and_test_sets()
     corpus2 = CPTCorpus.load(c)
     print corpus2.get_files_in_train_and_test_sets()
+    for p in corpus.perspectives:
+        print p
+    print corpus
+    print corpus2
     #print corpus.topicDictionary
     #print corpus.opinionDictionary
     #print len(corpus.perspectives[0].opinionCorpus)
