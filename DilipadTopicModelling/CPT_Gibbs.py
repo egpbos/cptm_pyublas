@@ -24,7 +24,8 @@ from gibbs_inner import gibbs_inner
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(time)s : %(levelname)s : %(message)s',
+                    level=logging.INFO)
 
 
 class GibbsSampler():
@@ -56,7 +57,7 @@ class GibbsSampler():
 
     def _initialize(self, phi_topic=None):
         """Initializes the Gibbs sampler."""
-        logger.info('started initialization')
+        logger.info('started initialization ({})'.format(str(self)))
 
         if not isinstance(phi_topic, np.ndarray):
             logger.debug('working with train set')
@@ -120,7 +121,7 @@ class GibbsSampler():
                 self.x[persp][d_p, i] = opinion
                 self.nrs[persp, opinion, w_id] += 1
                 self.ns[persp, opinion] += 1
-        logger.info('finished initialization')
+        logger.info('finished initialization ({})'.format(str(self)))
 
     def sample_from(self, p):
         """Sample (new) topic from multinomial distribution p.
@@ -156,7 +157,7 @@ class GibbsSampler():
         return f1/f2
 
     def run(self):
-        logger.info('started sampling')
+        logger.info('started sampling ({})'.format(str(self)))
         if not self.out_dir:
             # store all parameter samples in memory
             self.theta_topic = np.zeros((self.nIter, self.DT, self.nTopics))
@@ -198,7 +199,7 @@ class GibbsSampler():
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
 
-        logger.info('finished sampling')
+        logger.info('finished sampling ({})'.format(str(self)))
 
         self.estimate_parameters()
 
@@ -325,7 +326,7 @@ class GibbsSampler():
         2012] section 5.1.1.
         """
         # TODO: implement more accurate estimate of perplexity
-        logger.info('calculating perplexity')
+        logger.info('calculating perplexity ({})'.format(str(self)))
 
         # load parameters
         if phi_topic is None:
@@ -539,7 +540,7 @@ class GibbsSampler():
                       self.alpha, self.beta, self.beta_o)
 
 if __name__ == '__main__':
-    logger.setLevel(logging.DEBUG)
+    #logger.setLevel(logging.DEBUG)
     #logger.setLevel(logging.INFO)
 
     #files = glob.glob('/home/jvdzwaan/data/tmp/dilipad/gov_opp/*')
