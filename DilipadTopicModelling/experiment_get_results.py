@@ -33,9 +33,11 @@ sampler.estimate_parameters(start=start, end=end)
 pd.DataFrame(sampler.theta).to_csv(os.path.join(out_dir, 'theta_{}.csv'.
                                                          format(nTopics)))
 topics = sampler.topics_to_df(phi=sampler.topics, words=corpus.topic_words())
-topics.to_csv(os.path.join(out_dir, 'topics_{}.csv'.format(nTopics)))
+topics.to_csv(os.path.join(out_dir, 'topics_{}.csv'.format(nTopics)),
+              encoding='utf8')
 for i, p in enumerate(sampler.corpus.perspectives):
     opinions = sampler.topics_to_df(phi=sampler.opinions[i],
                                     words=corpus.opinion_words())
     opinions.to_csv(os.path.join(out_dir,
-                                 'opinions_{}_{}.csv'.format(p.name, nTopics)))
+                                 'opinions_{}_{}.csv'.format(p.name, nTopics)),
+                    encoding='utf8')
