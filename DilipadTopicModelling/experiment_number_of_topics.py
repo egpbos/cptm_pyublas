@@ -1,49 +1,70 @@
 import logging
 import glob
 from multiprocessing import Pool
+import argparse
+import json
 
 from CPTCorpus import CPTCorpus
 from CPT_Gibbs import GibbsSampler
 
 
-def run_sampler(corpus, nTopics, nIter, beta, out_dir):
+def run_sampler(corpus, nTopics, nIter, beta, beta_o, out_dir):
     alpha = 50.0/nTopics
     logger.info('running Gibbs sampler (nTopics: {}, nIter: {}, alpha: {}, '
-                'beta: {})'.format(nTopics, nIter, alpha, beta))
+                'beta: {}, beta_o: {})'.format(nTopics, nIter, alpha, beta,
+                                               beta_o))
     sampler = GibbsSampler(corpus, nTopics=nTopics, nIter=nIter,
-                           alpha=alpha, beta=beta, beta_o=beta,
+                           alpha=alpha, beta=beta, beta_o=beta_o,
                            out_dir=out_dir.format(nTopics))
     sampler._initialize()
     sampler.run()
 
 
-logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-logger.setLevel(logging.DEBUG)
-#logger.setLevel(logging.INFO)
+parser = argparse.ArgumentParser()
+parser.add_argument('json', help='json file containing experiment '
+                    'configuration.')
+args = parser.parse_args()
 
-files = glob.glob('/home/jvdzwaan/data/dilipad/20112012/gov_opp/*')
+with open(args.json) as f:
+    config = json.load(f)
 
-out_dir = '/home/jvdzwaan/data/dilipad/res_20112012/{}'
+logger.debug('configuration of experiment: ')
+params = ['{}: {}'.format(p, v) for p, v in config.iteritems()]
+for p in params:
+    logger.debug(p)
 
-corpus = CPTCorpus(files, testSplit=20)
-corpus.filter_dictionaries(minFreq=5, removeTopTF=100, removeTopDF=100)
-corpus.save_dictionaries(directory=out_dir.format(''))
-corpus.save(out_dir.format('corpus.json'))
+files = glob.glob(config.get('input_data'))
 
-#corpus = CPTCorpus.load(out_dir.format('corpus.json'),
-#                        topicDict=out_dir.format('topicDict.dict'),
-#                        opinionDict=out_dir.format('opinionDict.dict'))
+out_dir = config.get('out_dir', '/{}')
+testSplit = config.get('testSplit', 20)
+minFreq = config.get('minFreq', 5)
+removeTopTF = config.get('removeTopTF', 100)
+removeTopDF = config.get('removeTopDF', 100)
+nIter = config.get('nIter', 200)
+beta = config.get('beta', 0.02)
+beta_o = config.get('beta_o', 0.02)
+nTopics = config.get('nTopics', range(20, 201, 20))
+nProcesses = config.get('nProcesses', None)
+loadDictionaries = config.get('loadDictionaries', 0)
 
-nIter = 200
-beta = 0.02
+if not loadDictionaries:
+    corpus = CPTCorpus(files, testSplit=testSplit)
+    corpus.filter_dictionaries(minFreq=minFreq, removeTopTF=removeTopTF,
+                               removeTopDF=removeTopDF)
+    corpus.save_dictionaries(directory=out_dir.format(''))
+    corpus.save(out_dir.format('corpus.json'))
+else:
+    corpus = CPTCorpus.load(out_dir.format('corpus.json'),
+                            topicDict=out_dir.format('topicDict.dict'),
+                            opinionDict=out_dir.format('opinionDict.dict'))
 
-nTopics = range(20, 201, 20)
 logger.info('running Gibbs sampler for {} configurations'.format(len(nTopics)))
 
-pool = Pool(processes=3)
-results = [pool.apply_async(run_sampler, args=(corpus, n, nIter, beta,
+pool = Pool(processes=nProcesses)
+results = [pool.apply_async(run_sampler, args=(corpus, n, nIter, beta, beta_o,
                                                out_dir))
            for n in nTopics]
 pool.close()
