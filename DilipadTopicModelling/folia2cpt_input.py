@@ -54,10 +54,6 @@ if __name__ == '__main__':
                              names=['Date', '1', '2', '3', '4'],
                              index_col=0, parse_dates=True)
     coalitions.sort_index(inplace=True)
-    print coalitions
-    i = coalitions.index.searchsorted('2010-02-28')
-    print 'i:', i
-    print coalitions.ix[coalitions.index[i]]
 
     dir_in = args.dir_in
     dir_out = args.dir_out
