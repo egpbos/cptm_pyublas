@@ -30,7 +30,8 @@ def load_config(fName):
     params['nIter'] = config.get('nIter', 200)
     params['beta'] = config.get('beta', 0.02)
     params['beta_o'] = config.get('beta_o', 0.02)
-    params['nTopics'] = config.get('nTopics', range(20, 201, 20))
+    params['expNumTopics'] = config.get('expNumTopics', range(20, 201, 20))
+    params['nTopics'] = config.get('nTopics')
     params['nProcesses'] = config.get('nProcesses', None)
 
     return params
