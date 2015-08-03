@@ -9,6 +9,7 @@ import os
 import random
 import numpy as np
 import json
+import sys
 
 
 logger = logging.getLogger(__name__)
@@ -372,6 +373,7 @@ class PartialCorpus(corpora.TextCorpus):
     def __init__(self, input, lineNumber=0):
         self.lineNumber = lineNumber
         self.maxDocLength = 0
+        self.minDocLength = sys.maxint
         input.sort()
         super(PartialCorpus, self).__init__(input)
 
@@ -385,9 +387,11 @@ class PartialCorpus(corpora.TextCorpus):
                 if len(lines) >= (self.lineNumber+1):
                         words = lines[self.lineNumber].split()
 
-                        # keep track of the maximum document length
+                        # keep track of the maximum and minimum document length
                         if len(words) > self.maxDocLength:
                             self.maxDocLength = len(words)
+                        if len(words) < self.minDocLength:
+                            self.minDocLength = len(words)
                 yield words
 
     def __len__(self):
