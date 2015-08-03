@@ -16,13 +16,28 @@ NUMBER = 100
 
 class Perspective():
     def __init__(self, name):
+        print self.word_types()
         self.name = name
-        self.topic_words = []
-        self.opinion_words = []
+        self.words = {}
+        for w in self.word_types():
+            self.words[w] = []
 
     def __str__(self):
+        len_topic_words, len_opinion_words = self.word_lengths()
         return 'Perspective: {} - {} topic words; {} opinion words'.format(
-            self.name, len(self.topic_words), len(self.opinion_words))
+            self.name, len_topic_words, len_opinion_words)
+
+    @classmethod
+    def pos_topic_words(self):
+        return ['N']
+
+    @classmethod
+    def pos_opinion_words(self):
+        return ['ADJ', 'BW', 'WW']
+
+    @classmethod
+    def word_types(self):
+        return self.pos_topic_words() + self.pos_opinion_words()
 
     def write2file(self, out_dir, file_name):
         # create dir (if not exists)
@@ -35,8 +50,15 @@ class Perspective():
         logger.debug('Writing file {} for perspective {}'.format(out_file,
                      self.name))
         with codecs.open(out_file, 'wb', 'utf8') as f:
-            f.write(u'{}\n'.format(' '.join(self.topic_words)))
-            f.write(u'{}\n'.format(' '.join(self.opinion_words)))
+            for w in self.word_types():
+                f.write(u'{}\n'.format(' '.join(self.words[w])))
+
+    def word_lengths(self):
+        len_topic_words = sum([len(self.words[w])
+                               for w in Perspective.pos_topic_words()])
+        len_opinion_words = sum([len(self.words[w])
+                                for w in Perspective.pos_opinion_words()])
+        return len_topic_words, len_opinion_words
 
 
 def extract_words(data_file, nFile, nFiles, coalitions):
@@ -50,9 +72,6 @@ def extract_words(data_file, nFile, nFiles, coalitions):
     speech_tag = '{http://www.politicalmashup.nl}speech'
     party_tag = '{http://www.politicalmashup.nl}party'
     date_tag = '{http://purl.org/dc/elements/1.1/}date'
-
-    pos_topic_words = ['N']
-    pos_opinion_words = ['WW', 'ADJ', 'BW']
 
     known_parties = ['CDA', 'D66', 'GPV', 'GroenLinks', 'OSF', 'PvdA', 'RPF',
                      'SGP', 'SP', 'VVD', '50PLUS', 'AVP', 'ChristenUnie',
@@ -119,12 +138,9 @@ def extract_words(data_file, nFile, nFiles, coalitions):
                 for w in word_elems:
                     pos = w.find(pos_tag).attrib.get('class')
                     l = w.find(lemma_tag).attrib.get('class')
-                    if pos in pos_topic_words:
-                        data[party].topic_words.append(l)
-                        go_data[go_perspective].topic_words.append(l)
-                    if pos in pos_opinion_words:
-                        data[party].opinion_words.append(l)
-                        go_data[go_perspective].opinion_words.append(l)
+                    if pos in Perspective.word_types():
+                        data[party].words[pos].append(l)
+                        go_data[go_perspective].words[pos].append(l)
             else:
                 num_speech_without_party += 1
     del context
@@ -135,16 +151,16 @@ def extract_words(data_file, nFile, nFiles, coalitions):
 def process_file(data_file, nFile, nFiles, coalitions):
         data, go_data = extract_words(data_file, nFile, nFiles, coalitions)
 
-        min_words = 100
+        min_words = 1
         for p, persp in data.iteritems():
-            if len(persp.topic_words) >= min_words and \
-               len(persp.opinion_words) >= min_words:
+            len_topic_words, len_opinion_words = persp.word_lengths()
+            if len_topic_words >= min_words and len_opinion_words >= min_words:
                 fpath, fname = os.path.split(data_file)
                 persp.write2file('{}/parties'.format(dir_out),
                                  '{}.txt'.format(fname))
         for p, persp in go_data.iteritems():
-            if len(persp.topic_words) >= min_words and \
-               len(persp.opinion_words) >= min_words:
+            len_topic_words, len_opinion_words = persp.word_lengths()
+            if len_topic_words >= min_words and len_opinion_words >= min_words:
                 fpath, fname = os.path.split(data_file)
                 persp.write2file('{}/gov_opp'.format(dir_out),
                                  '{}.txt'.format(fname))
