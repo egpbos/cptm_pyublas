@@ -31,23 +31,34 @@ class CPTCorpus():
         testSplit : int
             Integer specifying the percentage of documents to be used as test
             set (for calculating perplexity).
+        topicLines : list of ints
+            list of ints specifying the line numbers in the data set containing
+            topic words
+        opinionLines : list of ints
+            list of ints specifying the line numbers in the data set containing
+            opinion words
     """
     TOPIC_DICT = 'topicDict.dict'
     OPINION_DICT = 'opinionDict.dict'
 
     def __init__(self, input=None, topicDict=None, opinionDict=None,
-                 testSplit=None, file_dict=None):
+                 testSplit=None, file_dict=None, topicLines=[0],
+                 opinionLines=[1]):
         if not file_dict is None:
             logger.info('initialize CPT Corpus with file_dict: {} perspectives'
                         .format(len(file_dict)))
-            self.perspectives = [Perspective(file_dict=file_dict.get(str(p)))
+            self.perspectives = [Perspective(file_dict=file_dict.get(str(p)),
+                                             topicLines=topicLines,
+                                             opinionLines=opinionLines)
                                  for p in range(len(file_dict))]
         else:
             logger.info('initialize CPT Corpus with {} perspectives'
                         .format(len(input)))
             input.sort()
             self.perspectives = [Perspective(input=glob.glob('{}/*.txt'.
-                                             format(d)), testSplit=testSplit)
+                                             format(d)), testSplit=testSplit,
+                                             topicLines=topicLines,
+                                             opinionLines=opinionLines)
                                  for d in input]
             self.input = input
 
@@ -266,12 +277,14 @@ class CPTCorpus():
             json.dump(file_dict, f, sort_keys=True, indent=4)
 
     @classmethod
-    def load(self, file_name, topicDict=None, opinionDict=None):
+    def load(self, file_name, topicLines, opinionLines, topicDict=None,
+             opinionDict=None):
         logger.info('loading corpus from {}'.format(file_name))
         with open(file_name, 'rb') as f:
             file_dict = json.load(f)
         return self(file_dict=file_dict, topicDict=topicDict,
-                    opinionDict=opinionDict)
+                    opinionDict=opinionDict, topicLines=topicLines,
+                    opinionLines=opinionLines)
 
 
 class Perspective():
@@ -285,13 +298,16 @@ class Perspective():
             (.txt). A text file contains the topic words on the first line and
             opinion words on the second line.
     """
-    def __init__(self, input=None, testSplit=None, file_dict=None):
+    def __init__(self, input=None, testSplit=None, file_dict=None,
+                 topicLines=[0], opinionLines=[1]):
         if not file_dict is None:
             self.testFiles = file_dict.get('test', [])
-            self.testSet = Corpus(self.testFiles)
+            self.testSet = Corpus(self.testFiles, topicLines=topicLines,
+                                  opinionLines=opinionLines)
 
             self.trainFiles = file_dict.get('train')
-            self.trainSet = Corpus(self.trainFiles)
+            self.trainSet = Corpus(self.trainFiles, topicLines=topicLines,
+                                   opinionLines=opinionLines)
 
             self.name = self.persp_name(self.trainSet.input[0])
             logger.info('initialize perspective "{}" from file_dict'
@@ -315,10 +331,12 @@ class Perspective():
                 random.shuffle(input)
                 self.testFiles = input[:splitIndex]
                 input = input[splitIndex:]
-            self.testSet = Corpus(self.testFiles)
+            self.testSet = Corpus(self.testFiles, topicLines=topicLines,
+                                  opinionLines=opinionLines)
 
             self.trainFiles = input
-            self.trainSet = Corpus(self.trainFiles)
+            self.trainSet = Corpus(self.trainFiles, topicLines=topicLines,
+                                   opinionLines=opinionLines)
 
     def persp_name(self, fName):
         if os.path.isfile(fName):
@@ -351,10 +369,11 @@ class Corpus():
     words and one for opinion words. This class is used by the Perspective
     class.
     """
-    def __init__(self, input):
+    def __init__(self, input, topicLines, opinionLines):
         self.input = input
-        self.topicCorpus = PartialCorpus(input, lineNumber=0)
-        self.opinionCorpus = PartialCorpus(input, lineNumber=1)
+
+        self.topicCorpus = PartialCorpus(input, lineNumbers=topicLines)
+        self.opinionCorpus = PartialCorpus(input, lineNumbers=opinionLines)
 
     def __iter__(self):
         # topic_words and opinion_words are lists of actual words
@@ -370,8 +389,8 @@ class PartialCorpus(corpora.TextCorpus):
     """Gensim TextCorpus containing either topic or opinion words.
     Used by the Corpus class.
     """
-    def __init__(self, input, lineNumber=0):
-        self.lineNumber = lineNumber
+    def __init__(self, input, lineNumbers):
+        self.lineNumbers = lineNumbers
         self.maxDocLength = 0
         self.minDocLength = sys.maxint
         input.sort()
@@ -384,15 +403,16 @@ class PartialCorpus(corpora.TextCorpus):
             with codecs.open(txt, 'rb', 'utf8') as f:
                 lines = f.readlines()
                 words = []
-                if len(lines) >= (self.lineNumber+1):
-                        words = lines[self.lineNumber].split()
+                for lineNumber in self.lineNumbers:
+                    if len(lines) >= (lineNumber+1):
+                        words = words + lines[lineNumber].split()
 
-                        # keep track of the maximum and minimum document length
-                        if len(words) > self.maxDocLength:
-                            self.maxDocLength = len(words)
-                        if len(words) < self.minDocLength:
-                            self.minDocLength = len(words)
-                yield words
+                # keep track of the maximum and minimum document length
+                if len(words) > self.maxDocLength:
+                    self.maxDocLength = len(words)
+                if len(words) < self.minDocLength:
+                        self.minDocLength = len(words)
+            yield words
 
     def __len__(self):
         return len(self.input)

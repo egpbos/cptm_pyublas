@@ -33,6 +33,7 @@ def load_config(fName):
     params['expNumTopics'] = config.get('expNumTopics', range(20, 201, 20))
     params['nTopics'] = config.get('nTopics')
     params['nProcesses'] = config.get('nProcesses', None)
+    params['opinionWords'] = config.get('opinionWords', None)
 
     return params
 

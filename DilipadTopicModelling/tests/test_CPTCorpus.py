@@ -18,7 +18,7 @@ def setup():
     data_dir = 'test_data/'
     persp_dirs = ['{}{}'.format(data_dir, p) for p in ('p0', 'p1')]
     documents = generateCPTCorpus.generate_cpt_corpus(data_dir)
-    corpus = CPTCorpus.CPTCorpus(persp_dirs)
+    corpus = CPTCorpus.CPTCorpus(persp_dirs, topicLines=[0], opinionLines=[1])
 
     dict_dir = 'test_dict'
 
@@ -71,7 +71,8 @@ def test_corpus_lengths():
 def test_loading_of_dictionaries():
     """Test loading of the corpus wide dictionaries"""
     corpus2 = CPTCorpus.CPTCorpus(persp_dirs, topicDict=corpus.topicDictionary,
-                                  opinionDict=corpus.opinionDictionary)
+                                  opinionDict=corpus.opinionDictionary,
+                                  topicLines=[0], opinionLines=[1])
     yield assert_equal, corpus.topicDictionary, corpus2.topicDictionary
     yield assert_equal, corpus.opinionDictionary, corpus2.opinionDictionary
 
@@ -81,7 +82,8 @@ def test_loading_of_dictionaries_from_file():
     corpus.save_dictionaries(directory=dict_dir)
 
     corpus2 = CPTCorpus.CPTCorpus(persp_dirs, topicDict=corpus.topic_dict_file_name(dict_dir),
-                                  opinionDict=corpus.opinion_dict_file_name(dict_dir))
+                                  opinionDict=corpus.opinion_dict_file_name(dict_dir),
+                                  topicLines=[0], opinionLines=[1])
     yield assert_equal, corpus.topicDictionary, corpus2.topicDictionary
     yield assert_equal, corpus.opinionDictionary, corpus2.opinionDictionary
 
@@ -150,7 +152,8 @@ def test_no_testSet():
 
 def test_testSet():
     """CPTCorpus with testSplit has train and test sets of particular length"""
-    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20)
+    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20,
+                                  topicLines=[0], opinionLines=[1])
 
     yield assert_equal, len(corpus2), 8
 
@@ -164,7 +167,8 @@ def test_illigal_values_for_testSplit():
     """No test set when value for testSplit parameter is illegal"""
     values = [-1, 0, 100, 1000]
     for v in values:
-        corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=v)
+        corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=v, topicLines=[0],
+                                      opinionLines=[1])
         for p in corpus2.perspectives:
             yield assert_equal, p.testFiles, []
             yield assert_equal, p.testSet.input, []
@@ -172,7 +176,8 @@ def test_illigal_values_for_testSplit():
 
 def test_loop_over_testSet():
     """Test loop over documents in testSet"""
-    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20)
+    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20,
+                                  topicLines=[0], opinionLines=[1])
     for d, persp, d_p, doc in corpus2.testSet():
         pass
 
@@ -185,7 +190,8 @@ def test_get_files_in_train_and_test_sets():
     """Test equallity of file_dicts"""
     file_dict1 = corpus.get_files_in_train_and_test_sets()
 
-    corpus2 = CPTCorpus.CPTCorpus(file_dict=file_dict1)
+    corpus2 = CPTCorpus.CPTCorpus(file_dict=file_dict1,
+                                  topicLines=[0], opinionLines=[1])
     file_dict2 = corpus2.get_files_in_train_and_test_sets()
 
     assert_equal(file_dict1, file_dict2)
@@ -193,10 +199,12 @@ def test_get_files_in_train_and_test_sets():
 
 def test_get_files_in_train_and_test_sets_testSplit():
     """Test equallity of file_dicts with testSplit"""
-    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=40)
+    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=40,
+                                  topicLines=[0], opinionLines=[1])
     file_dict1 = corpus2.get_files_in_train_and_test_sets()
 
-    corpus3 = CPTCorpus.CPTCorpus(file_dict=file_dict1)
+    corpus3 = CPTCorpus.CPTCorpus(file_dict=file_dict1,
+                                  topicLines=[0], opinionLines=[1])
     file_dict2 = corpus3.get_files_in_train_and_test_sets()
 
     assert_equal(file_dict1, file_dict2)
@@ -209,7 +217,7 @@ def test_load_corpus_from_file():
     fName = '{}/corpus.json'.format(data_dir)
     corpus.save(fName)
 
-    corpus2 = CPTCorpus.CPTCorpus.load(fName)
+    corpus2 = CPTCorpus.CPTCorpus.load(fName, topicLines=[0], opinionLines=[1])
     file_dict2 = corpus2.get_files_in_train_and_test_sets()
 
     assert_equal(file_dict1, file_dict2)

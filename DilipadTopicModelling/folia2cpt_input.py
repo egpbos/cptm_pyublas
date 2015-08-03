@@ -9,6 +9,7 @@ import glob
 import datetime
 import pandas as pd
 from multiprocessing import Pool
+from utils.dutchdata import pos_topic_words, pos_opinion_words, word_types
 
 
 NUMBER = 100
@@ -16,28 +17,15 @@ NUMBER = 100
 
 class Perspective():
     def __init__(self, name):
-        print self.word_types()
         self.name = name
         self.words = {}
-        for w in self.word_types():
+        for w in word_types():
             self.words[w] = []
 
     def __str__(self):
         len_topic_words, len_opinion_words = self.word_lengths()
         return 'Perspective: {} - {} topic words; {} opinion words'.format(
             self.name, len_topic_words, len_opinion_words)
-
-    @classmethod
-    def pos_topic_words(self):
-        return ['N']
-
-    @classmethod
-    def pos_opinion_words(self):
-        return ['ADJ', 'BW', 'WW']
-
-    @classmethod
-    def word_types(self):
-        return self.pos_topic_words() + self.pos_opinion_words()
 
     def write2file(self, out_dir, file_name):
         # create dir (if not exists)
@@ -50,14 +38,14 @@ class Perspective():
         logger.debug('Writing file {} for perspective {}'.format(out_file,
                      self.name))
         with codecs.open(out_file, 'wb', 'utf8') as f:
-            for w in self.word_types():
+            for w in word_types():
                 f.write(u'{}\n'.format(' '.join(self.words[w])))
 
     def word_lengths(self):
         len_topic_words = sum([len(self.words[w])
-                               for w in Perspective.pos_topic_words()])
+                               for w in pos_topic_words()])
         len_opinion_words = sum([len(self.words[w])
-                                for w in Perspective.pos_opinion_words()])
+                                for w in pos_opinion_words()])
         return len_topic_words, len_opinion_words
 
 
@@ -138,7 +126,7 @@ def extract_words(data_file, nFile, nFiles, coalitions):
                 for w in word_elems:
                     pos = w.find(pos_tag).attrib.get('class')
                     l = w.find(lemma_tag).attrib.get('class')
-                    if pos in Perspective.word_types():
+                    if pos in word_types():
                         data[party].words[pos].append(l)
                         go_data[go_perspective].words[pos].append(l)
             else:
