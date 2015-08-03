@@ -142,13 +142,14 @@ def test_word_lists():
 
 
 def test_no_testSet():
-    """CPTCorpus without testSplit has no test sets"""
+    """CPTCorpus without testSplit has empty test sets"""
     for p in corpus.perspectives:
-        yield assert_equal, hasattr(p, 'testSet'), False
+        yield assert_equal, p.testFiles, []
+        yield assert_equal, p.testSet.input, []
 
 
 def test_testSet():
-    """CPTCorpus with testSplit has test sets of particular length"""
+    """CPTCorpus with testSplit has train and test sets of particular length"""
     corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20)
 
     yield assert_equal, len(corpus2), 8
@@ -165,7 +166,8 @@ def test_illigal_values_for_testSplit():
     for v in values:
         corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=v)
         for p in corpus2.perspectives:
-            yield assert_equal, hasattr(p, 'testSet'), False
+            yield assert_equal, p.testFiles, []
+            yield assert_equal, p.testSet.input, []
 
 
 def test_loop_over_testSet():
