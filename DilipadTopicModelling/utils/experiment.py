@@ -37,6 +37,14 @@ def load_config(fName):
     return params
 
 
+def add_parameter(name, value, fName):
+    with open(fName) as f:
+        config = json.load(f)
+    config[name] = value
+    with open(fName, 'w') as f:
+        json.dump(config, f)
+
+
 def get_corpus(params):
     out_dir = params.get('outDir')
     files = glob.glob(params.get('input_data'))
