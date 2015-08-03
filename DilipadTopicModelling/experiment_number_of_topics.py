@@ -21,7 +21,7 @@ args = parser.parse_args()
 config = load_config(args.json)
 corpus = get_corpus(config)
 
-nTopics = config.get('nTopics')
+nTopics = config.get('expNumTopics')
 logger.info('running Gibbs sampler for {} configurations'.format(len(nTopics)))
 
 pool = Pool(processes=config.get('nProcesses'))

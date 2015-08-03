@@ -21,8 +21,8 @@ def load_config(fName):
         logger.debug(p)
 
     params = {}
-    params['inputData'] = config.get('input_data')
-    params['outDir'] = config.get('out_dir', '/{}')
+    params['inputData'] = config.get('inputData')
+    params['outDir'] = config.get('outDir', '/{}')
     params['testSplit'] = config.get('testSplit', 20)
     params['minFreq'] = config.get('minFreq', 5)
     params['removeTopTF'] = config.get('removeTopTF', 100)
@@ -33,7 +33,8 @@ def load_config(fName):
     params['expNumTopics'] = config.get('expNumTopics', range(20, 201, 20))
     params['nTopics'] = config.get('nTopics')
     params['nProcesses'] = config.get('nProcesses', None)
-    params['opinionWords'] = config.get('opinionWords', None)
+    params['topicLines'] = config.get('topicLines', [0])
+    params['opinionLines'] = config.get('opinionLines', [1])
 
     return params
 
@@ -48,11 +49,13 @@ def add_parameter(name, value, fName):
 
 def get_corpus(params):
     out_dir = params.get('outDir')
-    files = glob.glob(params.get('input_data'))
+    files = glob.glob(params.get('inputData'))
 
     if not os.path.isfile(os.path.join(out_dir, 'corpus.json')):
         corpus = CPTCorpus(files,
-                           testSplit=params.get('testSplit'))
+                           testSplit=params.get('testSplit'),
+                           topicLines=params.get('topicLines'),
+                           opinionLines=params.get('opinionLines'))
         corpus.filter_dictionaries(minFreq=params.get('minFreq'),
                                    removeTopTF=params.get('removeTopTF'),
                                    removeTopDF=params.get('removeTopDF'))
