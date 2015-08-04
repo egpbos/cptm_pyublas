@@ -49,7 +49,7 @@ class Perspective():
         return len_topic_words, len_opinion_words
 
 
-def extract_words(data_file, nFile, nFiles, coalitions):
+def extract_words(data_file, nFile, nFiles, coalitions, cabinets):
     logger.debug('{} ({} of {})'.format(data_file, nFile, nFiles))
     if nFile % NUMBER == 0:
         logger.info('{} ({} of {})'.format(data_file, nFile, nFiles))
@@ -81,12 +81,23 @@ def extract_words(data_file, nFile, nFiles, coalitions):
     go_data['g'] = Perspective('Government')
     go_data['o'] = Perspective('Opposition')
 
+    # Cabinets
+    # And government vs. opposition divided into cabinets
+    ca_data = {}
+    ca_go_data = {}
+    for ca in cabinets.tolist():
+        ca_data[ca] = Perspective(ca)
+        ca_go_data[ca] = {}
+        ca_go_data[ca]['g'] = Perspective('{}-Government'.format(ca))
+        ca_go_data[ca]['o'] = Perspective('{}-Opposition'.format(ca))
+
     for event, elem in context:
         if elem.tag == date_tag:
             d = datetime.datetime.strptime(elem.text, "%Y-%m-%d").date()
             i = coalitions.index.searchsorted(d)
             c = coalitions.ix[coalitions.index[i-1]].tolist()
             coalition_parties = [p for p in c if str(p) != 'nan']
+            ca = cabinets[i-1]
         if elem.tag == speech_tag:
             num_speech += 1
             party = elem.attrib.get(party_tag)
@@ -119,7 +130,8 @@ def extract_words(data_file, nFile, nFiles, coalitions):
                 else:
                     go_perspective = 'o'
                 logger.debug('date: {}, party: {}, government or opposition: '
-                             '{}'.format(str(d), party, go_perspective))
+                             '{}, cabinet: {}'.format(str(d), party,
+                                                      go_perspective, ca))
 
                 # find all words
                 word_elems = elem.findall('.//{}'.format(word_tag))
@@ -129,29 +141,35 @@ def extract_words(data_file, nFile, nFiles, coalitions):
                     if pos in word_types():
                         data[party].words[pos].append(l)
                         go_data[go_perspective].words[pos].append(l)
+                        ca_data[ca].words[pos].append(l)
+                        ca_go_data[ca][go_perspective].words[pos].append(l)
             else:
                 num_speech_without_party += 1
     del context
     f.close()
-    return data, go_data
+
+    return data, go_data, ca_data, ca_go_data
 
 
-def process_file(data_file, nFile, nFiles, coalitions):
-        data, go_data = extract_words(data_file, nFile, nFiles, coalitions)
+def write_data(data, name, data_file):
+    min_words = 1
+    for p, persp in data.iteritems():
+        len_topic_words, len_opinion_words = persp.word_lengths()
+        if len_topic_words >= min_words and len_opinion_words >= min_words:
+            fpath, fname = os.path.split(data_file)
+            persp.write2file('{}/{}'.format(dir_out, name),
+                             '{}.txt'.format(fname))
 
-        min_words = 1
-        for p, persp in data.iteritems():
-            len_topic_words, len_opinion_words = persp.word_lengths()
-            if len_topic_words >= min_words and len_opinion_words >= min_words:
-                fpath, fname = os.path.split(data_file)
-                persp.write2file('{}/parties'.format(dir_out),
-                                 '{}.txt'.format(fname))
-        for p, persp in go_data.iteritems():
-            len_topic_words, len_opinion_words = persp.word_lengths()
-            if len_topic_words >= min_words and len_opinion_words >= min_words:
-                fpath, fname = os.path.split(data_file)
-                persp.write2file('{}/gov_opp'.format(dir_out),
-                                 '{}.txt'.format(fname))
+
+def process_file(data_file, nFile, nFiles, coalitions, cabinets):
+    data, go_data, ca_data, ca_go_data = extract_words(data_file, nFile,
+                                                       nFiles, coalitions,
+                                                       cabinets)
+    write_data(data, 'parties', data_file)
+    write_data(go_data, 'gov_opp', data_file)
+    write_data(ca_data, 'cabinets', data_file)
+    for c in ca_go_data:
+        write_data(ca_go_data[c], 'cabinets-gov_opp', data_file)
 
 
 if __name__ == '__main__':
@@ -168,9 +186,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     coalitions = pd.read_csv('data/dutch_coalitions.csv', header=None,
-                             names=['Date', '1', '2', '3', '4'],
+                             names=['Date', 'Name', '1', '2', '3', '4'],
                              index_col=0, parse_dates=True)
     coalitions.sort_index(inplace=True)
+
+    cabinets = coalitions['Name']
+    coalitions = coalitions[['1', '2', '3', '4']]
 
     dir_in = args.dir_in
     dir_out = args.dir_out
@@ -181,7 +202,7 @@ if __name__ == '__main__':
     pool = Pool()
     data_files = glob.glob('{}/*/data_folia/*.xml.gz'.format(dir_in))
     results = [pool.apply_async(process_file, args=(data_file, i+1,
-                                len(data_files), coalitions))
+                                len(data_files), coalitions, cabinets))
                for i, data_file in enumerate(data_files)]
     pool.close()
     pool.join()
