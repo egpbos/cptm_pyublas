@@ -35,6 +35,8 @@ def load_config(fName):
     params['nProcesses'] = config.get('nProcesses', None)
     params['topicLines'] = config.get('topicLines', [0])
     params['opinionLines'] = config.get('opinionLines', [1])
+    params['sampleEstimateStart'] = config.get('sampleEstimateStart')
+    params['sampleEstimateEnd'] = config.get('sampleEstimateEnd')
 
     return params
 
@@ -68,7 +70,9 @@ def get_corpus(params):
     return corpus
 
 
-def get_sampler(params, corpus, nTopics):
+def get_sampler(params, corpus, nTopics=None):
+    if nTopics is None:
+        nTopics = params.get('nTopics')
     out_dir = params.get('outDir')
     nIter = params.get('nIter')
     alpha = 50.0/nTopics
