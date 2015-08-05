@@ -24,9 +24,9 @@ def load_config(fName):
     params['inputData'] = config.get('inputData')
     params['outDir'] = config.get('outDir', '/{}')
     params['testSplit'] = config.get('testSplit', 20)
-    params['minFreq'] = config.get('minFreq', 5)
-    params['removeTopTF'] = config.get('removeTopTF', 100)
-    params['removeTopDF'] = config.get('removeTopDF', 100)
+    params['minFreq'] = config.get('minFreq')
+    params['removeTopTF'] = config.get('removeTopTF')
+    params['removeTopDF'] = config.get('removeTopDF')
     params['nIter'] = config.get('nIter', 200)
     params['beta'] = config.get('beta', 0.02)
     params['beta_o'] = config.get('beta_o', 0.02)
@@ -58,9 +58,14 @@ def get_corpus(params):
                            testSplit=params.get('testSplit'),
                            topicLines=params.get('topicLines'),
                            opinionLines=params.get('opinionLines'))
-        corpus.filter_dictionaries(minFreq=params.get('minFreq'),
-                                   removeTopTF=params.get('removeTopTF'),
-                                   removeTopDF=params.get('removeTopDF'))
+        minFreq = params.get('minFreq')
+        removeTopTF = params.get('removeTopTF')
+        removeTopDF = params.get('removeTopDF')
+        if (not minFreq is None) or (not removeTopTF is None) or \
+           (not removeTopDF is None):
+            corpus.filter_dictionaries(minFreq=minFreq,
+                                       removeTopTF=removeTopTF,
+                                       removeTopDF=removeTopDF)
         corpus.save_dictionaries(directory=out_dir.format(''))
         corpus.save(out_dir.format('corpus.json'))
     else:
@@ -89,16 +94,32 @@ def get_sampler(params, corpus, nTopics=None):
 
 
 def thetaFileName(params):
-    return os.path.join(params.get('outDir'),
-                        'theta_{}.csv'.format(params.get('nTopics')))
+    nTopics = params.get('nTopics')
+    return os.path.join(params.get('outDir').format(nTopics),
+                        'theta_{}.csv'.format(nTopics))
 
 
 def topicFileName(params):
-    return os.path.join(params.get('outDir'),
-                        'topics_{}.csv'.format(params.get('nTopics')))
+    nTopics = params.get('nTopics')
+    return os.path.join(params.get('outDir').format(nTopics),
+                        'topics_{}.csv'.format(nTopics))
 
 
 def opinionFileName(params, name):
+    nTopics = params.get('nTopics')
     return os.path.join(params.get('outDir'),
-                        'opinions_{}_{}.csv'.format(name,
-                                                    params.get('nTopics')))
+                        'opinions_{}_{}.csv'.format(name, nTopics))
+
+
+def experimentName(params):
+    fName = params.get('outDir')
+    fName = fName.replace('/{}', '')
+    _p, name = os.path.split(fName)
+    return name
+
+
+def tarFileName(params):
+    nTopics = params.get('nTopics')
+    name = experimentName(params)
+    return os.path.join(params.get('outDir').format(nTopics),
+                        '{}_{}.tgz'.format(name, nTopics))

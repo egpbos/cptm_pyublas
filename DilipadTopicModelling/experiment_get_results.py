@@ -2,9 +2,10 @@ import logging
 import pandas as pd
 import argparse
 import sys
+import tarfile
 
 from utils.experiment import load_config, get_corpus, get_sampler, \
-    thetaFileName, topicFileName, opinionFileName
+    thetaFileName, topicFileName, opinionFileName, tarFileName
 
 
 logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.DEBUG)
@@ -31,8 +32,10 @@ if nTopics is None or start is None or end is None:
 
 corpus = get_corpus(config)
 sampler = get_sampler(config, corpus)
+logger.info('estimating parameters')
 sampler.estimate_parameters(start=start, end=end)
 
+logger.info('saving files')
 pd.DataFrame(sampler.theta).to_csv(thetaFileName(config))
 
 topics = sampler.topics_to_df(phi=sampler.topics, words=corpus.topic_words())
@@ -42,3 +45,10 @@ for i, p in enumerate(sampler.corpus.perspectives):
     opinions = sampler.topics_to_df(phi=sampler.opinions[i],
                                     words=corpus.opinion_words())
     opinions.to_csv(opinionFileName(config, p.name), encoding='utf8')
+
+logger.info('creating .tgz')
+with tarfile.open(tarFileName(config), "w:gz") as tar:
+    for name in [thetaFileName(config), topicFileName(config)] + \
+                [opinionFileName(config, p.name)
+                    for p in sampler.corpus.perspectives]:
+            tar.add(name)
