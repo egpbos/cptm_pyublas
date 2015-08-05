@@ -62,12 +62,12 @@ class CPTCorpus():
                                  for d in input]
             self.input = input
 
-        if isinstance(topicDict, str):
+        if isinstance(topicDict, str) or isinstance(topicDict, unicode):
             self.load_dictionaries(topicDict=topicDict)
         elif isinstance(topicDict, corpora.Dictionary):
             self.topicDictionary = topicDict
 
-        if isinstance(opinionDict, str):
+        if isinstance(opinionDict, str) or isinstance(opinionDict, unicode):
             self.load_dictionaries(opinionDict=opinionDict)
         elif isinstance(opinionDict, corpora.Dictionary):
             self.opinionDictionary = opinionDict
@@ -280,6 +280,10 @@ class CPTCorpus():
     def load(self, file_name, topicLines, opinionLines, topicDict=None,
              opinionDict=None):
         logger.info('loading corpus from {}'.format(file_name))
+        logger.debug('topicDict: {}'.format(topicDict))
+        logger.debug('opinionDict: {}'.format(opinionDict))
+        logger.debug('topicLines: {}'.format(topicLines))
+        logger.debug('opinionLines: {}'.format(opinionLines))
         with open(file_name, 'rb') as f:
             file_dict = json.load(f)
         return self(file_dict=file_dict, topicDict=topicDict,

@@ -53,7 +53,7 @@ def get_corpus(params):
     out_dir = params.get('outDir')
     files = glob.glob(params.get('inputData'))
 
-    if not os.path.isfile(os.path.join(out_dir, 'corpus.json')):
+    if not os.path.isfile(out_dir.format('corpus.json')):
         corpus = CPTCorpus(files,
                            testSplit=params.get('testSplit'),
                            topicLines=params.get('topicLines'),
@@ -69,7 +69,9 @@ def get_corpus(params):
         corpus.save_dictionaries(directory=out_dir.format(''))
         corpus.save(out_dir.format('corpus.json'))
     else:
-        corpus = CPTCorpus.load(out_dir.format('corpus.json'),
+        corpus = CPTCorpus.load(file_name=out_dir.format('corpus.json'),
+                                topicLines=params.get('topicLines'),
+                                opinionLines=params.get('opinionLines'),
                                 topicDict=out_dir.format('topicDict.dict'),
                                 opinionDict=out_dir.format('opinionDict.dict'))
     return corpus
@@ -107,7 +109,7 @@ def topicFileName(params):
 
 def opinionFileName(params, name):
     nTopics = params.get('nTopics')
-    return os.path.join(params.get('outDir'),
+    return os.path.join(params.get('outDir').format(nTopics),
                         'opinions_{}_{}.csv'.format(name, nTopics))
 
 
