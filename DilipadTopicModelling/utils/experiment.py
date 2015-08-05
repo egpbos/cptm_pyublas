@@ -86,3 +86,19 @@ def get_sampler(params, corpus, nTopics=None):
                            out_dir=out_dir.format(nTopics))
     sampler._initialize()
     return sampler
+
+
+def thetaFileName(params):
+    return os.path.join(params.get('outDir'),
+                        'theta_{}.csv'.format(params.get('nTopics')))
+
+
+def topicFileName(params):
+    return os.path.join(params.get('outDir'),
+                        'topics_{}.csv'.format(params.get('nTopics')))
+
+
+def opinionFileName(params, name):
+    return os.path.join(params.get('outDir'),
+                        'opinions_{}_{}.csv'.format(name,
+                                                    params.get('nTopics')))

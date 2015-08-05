@@ -1,10 +1,10 @@
 import logging
-import os
 import pandas as pd
 import argparse
 import sys
 
-from utils.experiment import load_config, get_corpus, get_sampler
+from utils.experiment import load_config, get_corpus, get_sampler, \
+    thetaFileName, topicFileName, opinionFileName
 
 
 logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.DEBUG)
@@ -33,16 +33,12 @@ if nTopics is None or start is None or end is None:
 sampler = get_sampler(config, corpus)
 sampler.estimate_parameters(start=start, end=end)
 
-thetaFile = os.path.join(config.get('outDir'), 'theta_{}.csv'.format(nTopics))
-pd.DataFrame(sampler.theta).to_csv(thetaFile)
+pd.DataFrame(sampler.theta).to_csv(thetaFileName(config))
 
-topicFile = os.path.join(config.get('outDir'), 'topics_{}.csv'.format(nTopics))
 topics = sampler.topics_to_df(phi=sampler.topics, words=corpus.topic_words())
-topics.to_csv(topicFile, encoding='utf8')
+topics.to_csv(topicFileName(config), encoding='utf8')
 
 for i, p in enumerate(sampler.corpus.perspectives):
-    opinionFile = os.path.join(config.get('outDir'),
-                               'opinions_{}_{}.csv'.format(p.name, nTopics))
     opinions = sampler.topics_to_df(phi=sampler.opinions[i],
                                     words=corpus.opinion_words())
-    opinions.to_csv(opinionFile, encoding='utf8')
+    opinions.to_csv(opinionFileName(config, p.name), encoding='utf8')
