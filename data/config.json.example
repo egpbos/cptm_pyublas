@@ -1,0 +1,15 @@
+{
+    "inputData": "/path/to/input/data/*",
+    "outDir": "/path/to/output/directory/{}",
+    "testSplit": 20,
+    "nIter": 200,
+    "beta": 0.02,
+    "beta_o": 0.02,
+    "expNumTopics": [20, 40, 60, 80, 100, 120, 140, 160, 180, 200],
+    "nProcesses": 3,
+    "nTopics": 100,
+    "topicLines": [0],
+    "opinionLines": [1, 2, 3],
+    "sampleEstimateStart": 80,
+    "sampleEstimateEnd": 199
+}
