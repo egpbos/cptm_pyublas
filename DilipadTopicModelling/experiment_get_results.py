@@ -16,7 +16,6 @@ parser.add_argument('json', help='json file containing experiment '
 args = parser.parse_args()
 
 config = load_config(args.json)
-corpus = get_corpus(config)
 
 nTopics = config.get('nTopics')
 start = config.get('sampleEstimateStart')
@@ -30,6 +29,7 @@ if nTopics is None or start is None or end is None:
                  format(args.json))
     sys.exit()
 
+corpus = get_corpus(config)
 sampler = get_sampler(config, corpus)
 sampler.estimate_parameters(start=start, end=end)
 
