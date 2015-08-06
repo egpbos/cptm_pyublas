@@ -10,43 +10,10 @@ import datetime
 import pandas as pd
 from multiprocessing import Pool
 from utils.dutchdata import pos_topic_words, pos_opinion_words, word_types
+from utils.inputgeneration import Perspective
 
 
 NUMBER = 100
-
-
-class Perspective():
-    def __init__(self, name):
-        self.name = name
-        self.words = {}
-        for w in word_types():
-            self.words[w] = []
-
-    def __str__(self):
-        len_topic_words, len_opinion_words = self.word_lengths()
-        return 'Perspective: {} - {} topic words; {} opinion words'.format(
-            self.name, len_topic_words, len_opinion_words)
-
-    def write2file(self, out_dir, file_name):
-        # create dir (if not exists)
-        directory = os.path.join(out_dir, self.name)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-        # write words to file
-        out_file = os.path.join(directory, file_name)
-        logger.debug('Writing file {} for perspective {}'.format(out_file,
-                     self.name))
-        with codecs.open(out_file, 'wb', 'utf8') as f:
-            for w in word_types():
-                f.write(u'{}\n'.format(' '.join(self.words[w])))
-
-    def word_lengths(self):
-        len_topic_words = sum([len(self.words[w])
-                               for w in pos_topic_words()])
-        len_opinion_words = sum([len(self.words[w])
-                                for w in pos_opinion_words()])
-        return len_topic_words, len_opinion_words
 
 
 def extract_words(data_file, nFile, nFiles, coalitions, cabinets):
@@ -69,27 +36,32 @@ def extract_words(data_file, nFile, nFiles, coalitions, cabinets):
     context = etree.iterparse(f, events=('end',), tag=(speech_tag, date_tag),
                               huge_tree=True)
 
+    tWords = pos_topic_words()
+    oWords = pos_opinion_words()
+
     # parties
     data = {}
     for party in known_parties:
-        data[party] = Perspective(party)
+        data[party] = Perspective(party, tWords, oWords)
     num_speech = 0
     num_speech_without_party = 0
 
     # Government vs. opposition
     go_data = {}
-    go_data['g'] = Perspective('Government')
-    go_data['o'] = Perspective('Opposition')
+    go_data['g'] = Perspective('Government', tWords, oWords)
+    go_data['o'] = Perspective('Opposition', tWords, oWords)
 
     # Cabinets
     # And government vs. opposition divided into cabinets
     ca_data = {}
     ca_go_data = {}
     for ca in cabinets.tolist():
-        ca_data[ca] = Perspective(ca)
+        ca_data[ca] = Perspective(ca, tWords, oWords)
         ca_go_data[ca] = {}
-        ca_go_data[ca]['g'] = Perspective('{}-Government'.format(ca))
-        ca_go_data[ca]['o'] = Perspective('{}-Opposition'.format(ca))
+        ca_go_data[ca]['g'] = Perspective('{}-Government'.format(ca), tWords,
+                                          oWords)
+        ca_go_data[ca]['o'] = Perspective('{}-Opposition'.format(ca), tWords,
+                                          oWords)
 
     for event, elem in context:
         if elem.tag == date_tag:
@@ -139,10 +111,10 @@ def extract_words(data_file, nFile, nFiles, coalitions, cabinets):
                     pos = w.find(pos_tag).attrib.get('class')
                     l = w.find(lemma_tag).attrib.get('class')
                     if pos in word_types():
-                        data[party].words[pos].append(l)
-                        go_data[go_perspective].words[pos].append(l)
-                        ca_data[ca].words[pos].append(l)
-                        ca_go_data[ca][go_perspective].words[pos].append(l)
+                        data[party].add(pos, l)
+                        go_data[go_perspective].add(pos, l)
+                        ca_data[ca].add(pos, l)
+                        ca_go_data[ca][go_perspective].add(pos, l)
             else:
                 num_speech_without_party += 1
     del context
@@ -177,6 +149,7 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)s : %(message)s',
                         level=logging.INFO)
     logger.setLevel(logging.DEBUG)
+    logging.getLogger('inputgeneration').setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('dir_in', help='directory containing the data '
@@ -199,7 +172,7 @@ if __name__ == '__main__':
     if not os.path.exists(dir_out):
         os.makedirs(dir_out)
 
-    pool = Pool()
+    pool = Pool(1)
     data_files = glob.glob('{}/*/data_folia/*.xml.gz'.format(dir_in))
     results = [pool.apply_async(process_file, args=(data_file, i+1,
                                 len(data_files), coalitions, cabinets))
