@@ -97,19 +97,19 @@ def get_sampler(params, corpus, nTopics=None):
 
 def thetaFileName(params):
     nTopics = params.get('nTopics')
-    return os.path.join(params.get('outDir').format(nTopics),
+    return os.path.join(params.get('outDir').format(''),
                         'theta_{}.csv'.format(nTopics))
 
 
 def topicFileName(params):
     nTopics = params.get('nTopics')
-    return os.path.join(params.get('outDir').format(nTopics),
+    return os.path.join(params.get('outDir').format(''),
                         'topics_{}.csv'.format(nTopics))
 
 
 def opinionFileName(params, name):
     nTopics = params.get('nTopics')
-    return os.path.join(params.get('outDir').format(nTopics),
+    return os.path.join(params.get('outDir').format(''),
                         'opinions_{}_{}.csv'.format(name, nTopics))
 
 
@@ -123,5 +123,5 @@ def experimentName(params):
 def tarFileName(params):
     nTopics = params.get('nTopics')
     name = experimentName(params)
-    return os.path.join(params.get('outDir').format(nTopics),
+    return os.path.join(params.get('outDir').format(''),
                         '{}_{}.tgz'.format(name, nTopics))
