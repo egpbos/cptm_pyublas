@@ -3,7 +3,7 @@ from nose.tools import assert_equal, assert_true, assert_false
 from .. import generateCPTCorpus
 from .. import CPTCorpus
 import shutil
-from DilipadTopicModelling.CPT_Gibbs import GibbsSampler
+from cptm.CPT_Gibbs import GibbsSampler
 from pandas import DataFrame
 from numpy.testing import assert_almost_equal
 from numpy import inf
@@ -38,7 +38,7 @@ def test_jensen_shannon_divergence_self():
     v = [0.2, 0.2, 0.2, 0.2, 0.2]
     df = DataFrame({'p0': v, 'p1': v})
 
-    assert_equal(0.0, sampler.jsd_opinions(df))
+    assert_equal(0.0, sampler.jsd_opinions(df.values))
 
 
 def test_jensen_shannon_divergence_symmetric():
@@ -48,7 +48,8 @@ def test_jensen_shannon_divergence_symmetric():
     df1 = DataFrame({'p0': v1, 'p1': v2})
     df2 = DataFrame({'p0': v2, 'p1': v1})
 
-    assert_equal(sampler.jsd_opinions(df1), sampler.jsd_opinions(df2))
+    assert_equal(sampler.jsd_opinions(df1.values),
+                 sampler.jsd_opinions(df2.values))
 
 
 def test_jensen_shannon_divergence_known_value():
@@ -57,7 +58,7 @@ def test_jensen_shannon_divergence_known_value():
     v2 = [0.2, 0.2, 0.2, 0.3, 0.1]
     df1 = DataFrame({'p0': v1, 'p1': v2})
 
-    assert_almost_equal(0.01352883, sampler.jsd_opinions(df1))
+    assert_almost_equal(0.01352883, sampler.jsd_opinions(df1.values))
 
 
 def test_contrastive_opinions_result_shape():

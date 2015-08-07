@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import random, zeros
 from numpy.testing import assert_array_almost_equal
-from DilipadTopicModelling.gibbs_inner import p_z, p_x
+from cptm.gibbs_inner import p_z, p_x
 
 
 def setup():
