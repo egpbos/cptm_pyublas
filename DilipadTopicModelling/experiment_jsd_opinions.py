@@ -21,7 +21,7 @@ nTopics = config.get('nTopics')
 sampler = get_sampler(config, corpus, nTopics)
 
 logger.info('loading opinions')
-outDir = config.get('outDir').format(nTopics)
+outDir = config.get('outDir').format('')
 phi_opinion = []
 for p in sampler.corpus.perspectives:
     f = '{}/opinions_{}_{}.csv'.format(outDir, p.name, nTopics)
