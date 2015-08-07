@@ -1,20 +1,15 @@
 import pandas as pd
 import logging
 from multiprocessing import Pool
+import argparse
 
-from CPTCorpus import CPTCorpus
-from CPT_Gibbs import GibbsSampler
+from utils.experiment import load_config, get_corpus, get_sampler
 
 
-def calculate_perplexity(corpus, nTopics, nIter, beta, out_dir, nPerplexity):
-    alpha = 50.0/nTopics
-    sampler = GibbsSampler(corpus, nTopics=nTopics, nIter=nIter,
-                           alpha=alpha, beta=beta, beta_o=beta,
-                           out_dir=out_dir.format(nTopics))
-    sampler._initialize()
-    #sampler.run()
+def calculate_perplexity(config, corpus, nPerplexity, nTopics):
+    sampler = get_sampler(config, corpus, nTopics)
+
     results = []
-    print nPerplexity
     for s in nPerplexity:
         logger.info('doing perplexity calculation ({}, {})'.format(nTopics, s))
         tw_perp, ow_perp = sampler.perplexity(index=s)
@@ -31,23 +26,21 @@ logging.getLogger('gensim').setLevel(logging.ERROR)
 logging.getLogger('CPTCorpus').setLevel(logging.ERROR)
 logging.getLogger('CPT_Gibbs').setLevel(logging.ERROR)
 
-# load corpus
-data_dir = '/home/jvdzwaan/data/tmp/generated/test_exp/'
-corpus = CPTCorpus.load('{}corpus.json'.format(data_dir),
-                        topicDict='{}/topicDict.dict'.format(data_dir),
-                        opinionDict='{}/opinionDict.dict'.format(data_dir))
+parser = argparse.ArgumentParser()
+parser.add_argument('json', help='json file containing experiment '
+                    'configuration.')
+args = parser.parse_args()
 
-nIter = 200
-beta = 0.02
-out_dir = '/home/jvdzwaan/data/tmp/generated/test_exp/{}'
+config = load_config(args.json)
+corpus = get_corpus(config)
 
-nTopics = range(20, nIter+1, 20)
-nPerplexity = range(0, nIter+1, 10)
+nTopics = config.get('expNumTopics')
+nPerplexity = range(0, config.get('nIter')+1, 10)
 
 # calculate perplexity
 pool = Pool(processes=5)
-results = [pool.apply_async(calculate_perplexity, args=(corpus, n, nIter, beta,
-                            out_dir, nPerplexity))
+results = [pool.apply_async(calculate_perplexity, args=(config, corpus,
+                            nPerplexity, n))
            # reverse list, so longest calculation is started first
            for n in nTopics[::-1]]
 pool.close()
@@ -64,5 +57,7 @@ for result in data:
         topic_perp.set_value(s, n, tw_perp)
         opinion_perp.set_value(s, n, ow_perp)
 
-topic_perp.to_csv(out_dir.format('perplexity_topic.csv'))
-opinion_perp.to_csv(out_dir.format('perplexity_opinion.csv'))
+outDir = config.get('outDir')
+logger.info('writing perplexity results to {}'.format(outDir.format('')))
+topic_perp.to_csv(outDir.format('perplexity_topic.csv'))
+opinion_perp.to_csv(outDir.format('perplexity_opinion.csv'))
