@@ -505,7 +505,7 @@ class GibbsSampler():
 
         return result
 
-    def jsd_opinions(self, co_df):
+    def jsd_opinions(self, co):
         """Calculate Jensen-Shannon divergence between contrastive opinions.
 
         Implements Jensen-Shannon divergence between contrastive opinions as
@@ -513,11 +513,11 @@ class GibbsSampler():
 
         Example usage:
             co = sampler.contrastive_opinions('mishandeling')
-            jsd =  sampler.jsd_opinions(co)
+            jsd =  sampler.jsd_opinions(co.values)
 
         Parameter:
-            co_df : pandas DataFrame
-            A pandas DataFrame containing contrastive opinions (see
+            co : numpy ndarray
+            A numpy ndarray containing contrastive opinions (see
             self.contrastive_opinions(query))
 
         Returns:
@@ -527,7 +527,6 @@ class GibbsSampler():
         """
         logger.debug('calculate Jensen-Shannon divergence between contrastive '
                      'opinions')
-        co = co_df.values
         result = np.zeros(self.nPerspectives, dtype=np.float)
         p_avg = np.mean(co, axis=1)
         for persp in range(self.nPerspectives):
