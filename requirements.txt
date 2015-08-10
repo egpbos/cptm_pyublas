@@ -7,4 +7,3 @@ python-Levenshtein
 fuzzywuzzy
 cython
 ipython
-ipython[notebook]
