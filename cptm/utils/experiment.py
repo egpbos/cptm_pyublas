@@ -4,8 +4,8 @@ import json
 import glob
 import os
 
-from CPTCorpus import CPTCorpus
-from CPT_Gibbs import GibbsSampler
+from cptm import CPTCorpus
+from cptm import GibbsSampler
 
 logging.basicConfig(format='%(levelname)s : %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)

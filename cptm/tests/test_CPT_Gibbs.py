@@ -1,7 +1,7 @@
 from nose.tools import assert_equal, assert_true, assert_false
 
-from .. import generateCPTCorpus
-from .. import CPTCorpus
+from cptm import generateCPTCorpus
+from cptm import CPTCorpus
 import shutil
 from cptm.CPT_Gibbs import GibbsSampler
 from pandas import DataFrame
@@ -22,7 +22,7 @@ def setup():
     out_dir = 'test_output/'
     persp_dirs = ['{}{}'.format(data_dir, p) for p in ('p0', 'p1')]
     documents = generateCPTCorpus.generate_cpt_corpus(data_dir)
-    corpus = CPTCorpus.CPTCorpus(persp_dirs, topicLines=[0], opinionLines=[1])
+    corpus = CPTCorpus(persp_dirs, topicLines=[0], opinionLines=[1])
     sampler = GibbsSampler(corpus, nTopics=3, nIter=5, out_dir=out_dir)
     sampler._initialize()
     sampler.run()
@@ -197,8 +197,8 @@ def test_get_phi_opinion_from_memory():
 
 def test_perplexity():
     """Minimal test of perplexity caluclation"""
-    corpus2 = CPTCorpus.CPTCorpus(persp_dirs, testSplit=20, topicLines=[0],
-                                  opinionLines=[1])
+    corpus2 = CPTCorpus(persp_dirs, testSplit=20, topicLines=[0],
+                        opinionLines=[1])
     sampler2 = GibbsSampler(corpus2, nTopics=3, nIter=5)
     sampler2._initialize()
     sampler2.run()
