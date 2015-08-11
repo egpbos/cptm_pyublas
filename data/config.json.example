@@ -11,5 +11,8 @@
     "topicLines": [0],
     "opinionLines": [1, 2, 3],
     "sampleEstimateStart": 80,
-    "sampleEstimateEnd": 199
+    "sampleEstimateEnd": 199,
+    "minFreq": 5,
+    "removeTopTF": 100,
+    "removeTopDF": 100
 }
