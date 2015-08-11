@@ -184,17 +184,15 @@ class GibbsSampler():
                 for p in range(self.nPerspectives):
                     self.phi_opinion[p][t] = self.calc_phi_opinion(p)
             else:
-                pd.DataFrame(self.calc_theta_topic()). \
-                    to_csv(self.get_theta_file_name(t))
-                pd.DataFrame(self.calc_phi_topic()). \
-                    to_csv(self.get_phi_topic_file_name(t))
+                np.save(self.get_theta_file_name(t), self.calc_theta_topic())
+                np.save(self.get_phi_topic_file_name(t), self.calc_phi_topic())
                 for p in range(self.nPerspectives):
-                    pd.DataFrame(self.calc_phi_opinion(p)). \
-                        to_csv(self.get_phi_opinion_file_name(p, t))
+                    np.save(self.get_phi_opinion_file_name(p, t),
+                            self.calc_phi_opinion(p))
 
                 # save nk (for Contrastive Opinion Mining)
                 self.nks[t] = np.copy(self.nk)
-                pd.DataFrame(self.nks).to_csv(self.get_nks_file_name())
+                np.save(self.get_nks_file_name(), self.nks)
 
             t2 = time.clock()
             logger.debug('time elapsed: {}'.format(t2-t1))
@@ -374,8 +372,7 @@ class GibbsSampler():
                                 self.get_parameter_file_name(name, end)))
             data = None
             for i in range(start, end):
-                ar = pd.read_csv(self.get_parameter_file_name(name, i),
-                                 index_col=0).as_matrix()
+                ar = np.load(self.get_parameter_file_name(name, i))
                 if data is None:
                     data = np.array([ar])
                 else:
@@ -385,8 +382,7 @@ class GibbsSampler():
         if not index is None:
             logger.debug('loading parameter file {}'.
                          format(self.get_parameter_file_name(name, index)))
-            return pd.read_csv(self.get_parameter_file_name(name, index),
-                               index_col=0).as_matrix()
+            return np.load(self.get_parameter_file_name(name, index))
 
     def get_phi_topic_file_name(self, number):
         return self.get_parameter_file_name(self.PHI_TOPIC, number)
@@ -399,10 +395,10 @@ class GibbsSampler():
         return self.get_parameter_file_name(self.THETA, number)
 
     def get_nks_file_name(self):
-        return '{}/{}.csv'.format(self.get_parameter_dir_name(), self.NKS)
+        return '{}/{}.npy'.format(self.get_parameter_dir_name(), self.NKS)
 
     def get_parameter_file_name(self, name, number):
-        return '{}/{}_{:04d}.csv'.format(self.get_parameter_dir_name(),
+        return '{}/{}_{:04d}.npy'.format(self.get_parameter_dir_name(),
                                          name, number)
 
     def get_parameter_dir_name(self):
@@ -485,7 +481,7 @@ class GibbsSampler():
         # TODO: allow the user to specify index or range of the parameters to use
         phi_topic = self.load_parameters(self.PHI_TOPIC, index=self.nIter-1)
 
-        self.nks = pd.read_csv(self.get_nks_file_name(), index_col=0).values
+        self.nks = np.load(self.get_nks_file_name())
 
         # TODO: fix case when word not in topicDictionary
         query_word_id = self.corpus.topicDictionary.token2id[query]
