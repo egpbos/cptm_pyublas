@@ -6,6 +6,7 @@ import codecs
 
 logger = logging.getLogger('inputgeneration')
 
+
 class Perspective():
     def __init__(self, name, posTopic, posOpinion):
         """Initialize inputgeneration Perspective.
@@ -17,7 +18,7 @@ class Perspective():
                 List of strings specifying the pos-tags for topic words.
             posOpinion : list of strings
                 List of strings specifying the pos-tags for opinion words.
-        """"
+        """
         self.name = name
         self.wordTypes = posTopic + posOpinion
         self.posTopic = posTopic
