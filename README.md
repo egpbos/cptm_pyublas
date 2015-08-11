@@ -6,6 +6,10 @@ A Gibbs sampler to do Cross-Perspective Topic Modeling, as described in
 
 ## Installation
 
+Install prerequisites.
+
+    sudo apt-get install gfortran libopenblas-dev liblapack-dev
+
 Clone the repository.
 
     git clone https://github.com/jvdzwaan/cptm.git
@@ -19,9 +23,11 @@ Compile Cython code.
 
     python setup.py build_ext --inplace
 
-Tests can be run with:
+Add the cptm directory to the `PYTHONPATH` (otherwise the scripts don't work).
 
-    nosetests --verbosity=3 -x
+    export PYTHONPATH=$PYTHONPATH:.
+
+Tests can be run with `nosetests` (don't forget to `pip install nose` if you're using a virtual environment).
 
 ## Saving CPTCorpus to disk
 
