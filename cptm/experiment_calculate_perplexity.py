@@ -3,7 +3,7 @@ import logging
 from multiprocessing import Pool
 import argparse
 
-from utils.experiment import load_config, get_corpus, get_sampler
+from cptm.utils.experiment import load_config, get_corpus, get_sampler
 
 
 def calculate_perplexity(config, corpus, nPerplexity, nTopics):
