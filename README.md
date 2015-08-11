@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/jvdzwaan/cptm.svg?branch=develop)](https://travis-ci.org/jvdzwaan/cptm)
+
 # Cross-Perspective Topic Modeling
 
 A Gibbs sampler to do Cross-Perspective Topic Modeling, as described in
