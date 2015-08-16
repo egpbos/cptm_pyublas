@@ -18,7 +18,7 @@ config = load_config(args.json)
 corpus = get_corpus(config)
 
 nTopics = config.get('nTopics')
-sampler = get_sampler(config, corpus, nTopics)
+sampler = get_sampler(config, corpus, nTopics, initialize=False)
 
 logger.info('loading opinions')
 outDir = config.get('outDir').format('')

@@ -25,7 +25,7 @@ outDir = config.get('outDir')
 sampleInterval = 10
 
 for nt in nTopics:
-    sampler = get_sampler(config, corpus, nTopics=nt)
+    sampler = get_sampler(config, corpus, nTopics=nt, initialize=False)
     logging.info('removing parameter sample files for nTopics = {}'.format(nt))
     for t in range(sampler.nIter):
         if t != 0 and (t+1) % sampleInterval != 0:

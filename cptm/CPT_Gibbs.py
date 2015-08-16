@@ -36,7 +36,7 @@ class GibbsSampler():
     NKS = 'nks'
 
     def __init__(self, corpus, nTopics=10, alpha=0.02, beta=0.02, beta_o=0.02,
-                 nIter=2, out_dir=None, sample_interval=10):
+                 nIter=2, out_dir=None, sample_interval=10, initialize=True):
         self.corpus = corpus
         self.nTopics = nTopics
         self.alpha = alpha
@@ -54,7 +54,8 @@ class GibbsSampler():
         if not os.path.exists(parameter_dir):
             os.makedirs(parameter_dir)
 
-        #self._initialize()
+        if initialize:
+            self._initialize()
 
     def _initialize(self, phi_topic=None):
         """Initializes the Gibbs sampler."""

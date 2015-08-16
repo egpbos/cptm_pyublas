@@ -77,7 +77,7 @@ def get_corpus(params):
     return corpus
 
 
-def get_sampler(params, corpus, nTopics=None):
+def get_sampler(params, corpus, nTopics=None, initialize=True):
     if nTopics is None:
         nTopics = params.get('nTopics')
     out_dir = params.get('outDir')
@@ -85,13 +85,13 @@ def get_sampler(params, corpus, nTopics=None):
     alpha = 50.0/nTopics
     beta = params.get('beta')
     beta_o = params.get('beta_o')
-    logger.info('running Gibbs sampler (nTopics: {}, nIter: {}, alpha: {}, '
+    logger.info('creating Gibbs sampler (nTopics: {}, nIter: {}, alpha: {}, '
                 'beta: {}, beta_o: {})'.format(nTopics, nIter, alpha, beta,
                                                beta_o))
     sampler = GibbsSampler(corpus, nTopics=nTopics, nIter=nIter,
                            alpha=alpha, beta=beta, beta_o=beta_o,
-                           out_dir=out_dir.format(nTopics))
-    sampler._initialize()
+                           out_dir=out_dir.format(nTopics),
+                           initialize=initialize)
     return sampler
 
 
