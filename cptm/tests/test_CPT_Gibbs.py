@@ -23,7 +23,8 @@ def setup():
     persp_dirs = ['{}{}'.format(data_dir, p) for p in ('p0', 'p1')]
     documents = generateCPTCorpus.generate_cpt_corpus(data_dir)
     corpus = CPTCorpus(persp_dirs, topicLines=[0], opinionLines=[1])
-    sampler = GibbsSampler(corpus, nTopics=3, nIter=5, out_dir=out_dir)
+    sampler = GibbsSampler(corpus, nTopics=3, nIter=5, out_dir=out_dir,
+                           sample_interval=1)
     sampler._initialize()
     sampler.run()
 

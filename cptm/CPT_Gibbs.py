@@ -36,7 +36,7 @@ class GibbsSampler():
     NKS = 'nks'
 
     def __init__(self, corpus, nTopics=10, alpha=0.02, beta=0.02, beta_o=0.02,
-                 nIter=2, out_dir=None):
+                 nIter=2, out_dir=None, sample_interval=10):
         self.corpus = corpus
         self.nTopics = nTopics
         self.alpha = alpha
@@ -44,6 +44,7 @@ class GibbsSampler():
         self.nPerspectives = len(self.corpus.perspectives)
         self.beta_o = beta_o
         self.nIter = nIter
+        self.sampleInterval = sample_interval
 
         self.out_dir = out_dir
         if self.out_dir:
@@ -184,11 +185,14 @@ class GibbsSampler():
                 for p in range(self.nPerspectives):
                     self.phi_opinion[p][t] = self.calc_phi_opinion(p)
             else:
-                np.save(self.get_theta_file_name(t), self.calc_theta_topic())
-                np.save(self.get_phi_topic_file_name(t), self.calc_phi_topic())
-                for p in range(self.nPerspectives):
-                    np.save(self.get_phi_opinion_file_name(p, t),
-                            self.calc_phi_opinion(p))
+                if t == 0 or (t+1) % self.sampleInterval == 0:
+                    np.save(self.get_theta_file_name(t),
+                            self.calc_theta_topic())
+                    np.save(self.get_phi_topic_file_name(t),
+                            self.calc_phi_topic())
+                    for p in range(self.nPerspectives):
+                        np.save(self.get_phi_opinion_file_name(p, t),
+                                self.calc_phi_opinion(p))
 
                 # save nk (for Contrastive Opinion Mining)
                 self.nks[t] = np.copy(self.nk)
@@ -372,11 +376,13 @@ class GibbsSampler():
                                 self.get_parameter_file_name(name, end)))
             data = None
             for i in range(start, end):
-                ar = np.load(self.get_parameter_file_name(name, i))
-                if data is None:
-                    data = np.array([ar])
-                else:
-                    data = np.append(data, np.array([ar]), axis=0)
+                fName = self.get_parameter_file_name(name, i)
+                if os.path.isfile(fName):
+                    ar = np.load(fName)
+                    if data is None:
+                        data = np.array([ar])
+                    else:
+                        data = np.append(data, np.array([ar]), axis=0)
             return np.mean(data, axis=0)
 
         if not index is None:
