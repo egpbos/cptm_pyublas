@@ -7,7 +7,7 @@ from cptm.utils.experiment import load_config, get_corpus, get_sampler
 
 
 def calculate_perplexity(config, corpus, nPerplexity, nTopics):
-    sampler = get_sampler(config, corpus, nTopics, initialize=False)
+    sampler = get_sampler(config, corpus, nTopics)
 
     results = []
     for s in nPerplexity:
