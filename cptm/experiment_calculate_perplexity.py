@@ -35,10 +35,10 @@ config = load_config(args.json)
 corpus = get_corpus(config)
 
 nTopics = config.get('expNumTopics')
-nPerplexity = range(0, config.get('nIter')+1, 10)
+nPerplexity = [0] + range(9, config.get('nIter')+1, 10)
 
 # calculate perplexity
-pool = Pool(processes=5)
+pool = Pool(processes=config.get('nProcesses'))
 results = [pool.apply_async(calculate_perplexity, args=(config, corpus,
                             nPerplexity, n))
            # reverse list, so longest calculation is started first
