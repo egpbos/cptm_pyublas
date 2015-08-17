@@ -46,6 +46,9 @@ class GibbsSampler():
         self.nIter = nIter
         self.sampleInterval = sample_interval
 
+        self.VT = len(self.corpus.topicDictionary)
+        self.VO = len(self.corpus.opinionDictionary)
+
         self.out_dir = out_dir
         if self.out_dir:
             if not os.path.exists(self.out_dir):
@@ -68,8 +71,6 @@ class GibbsSampler():
             logger.debug('working with test set')
             self.documents = self.corpus.testSet()
 
-        self.VT = len(self.corpus.topicDictionary)
-        self.VO = len(self.corpus.opinionDictionary)
         self.DT = sum([len(p.corpus(phi_topic).topicCorpus)
                        for p in self.corpus.perspectives])
         self.DO = max([len(p.corpus(phi_topic).opinionCorpus)
