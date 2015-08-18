@@ -31,7 +31,7 @@ if nTopics is None or start is None or end is None:
     sys.exit()
 
 corpus = get_corpus(config)
-sampler = get_sampler(config, corpus)
+sampler = get_sampler(config, corpus, nTopics=None, initialize=False)
 logger.info('estimating parameters')
 sampler.estimate_parameters(start=start, end=end)
 
