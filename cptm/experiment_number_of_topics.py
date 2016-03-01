@@ -24,8 +24,10 @@ corpus = get_corpus(config)
 nTopics = config.get('expNumTopics')
 logger.info('running Gibbs sampler for {} configurations'.format(len(nTopics)))
 
-pool = Pool(processes=config.get('nProcesses'))
-results = [pool.apply_async(run_sampler, args=(config, corpus, n))
-           for n in nTopics]
-pool.close()
-pool.join()
+# pool = Pool(processes=config.get('nProcesses'))
+# results = [pool.apply_async(run_sampler, args=(config, corpus, n))
+#            for n in nTopics]
+# pool.close()
+# pool.join()
+for n in nTopics:
+    run_sampler(config, corpus, n)

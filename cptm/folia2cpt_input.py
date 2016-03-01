@@ -156,6 +156,8 @@ if __name__ == '__main__':
                         '(gzipped FoLiA XML files)')
     parser.add_argument('dir_out', help='the name of the dir where the '
                         'CPT corpus should be saved.')
+    parser.add_argument('--max', default=0, type=int,
+                        help='only process `max` files (default: 0 (== all))')
     args = parser.parse_args()
 
     coalitions = pd.read_csv('data/dutch_coalitions.csv', header=None,
@@ -172,10 +174,15 @@ if __name__ == '__main__':
     if not os.path.exists(dir_out):
         os.makedirs(dir_out)
 
+    if args.max == 0:
+        N = len(data_files)
+    else:
+        N = args.max
+
     pool = Pool(1)
     data_files = glob.glob('{}/*/data_folia/*.xml.gz'.format(dir_in))
     results = [pool.apply_async(process_file, args=(data_file, i+1,
                                 len(data_files), coalitions, cabinets))
-               for i, data_file in enumerate(data_files)]
+               for i, data_file in enumerate(data_files[:N])]
     pool.close()
     pool.join()

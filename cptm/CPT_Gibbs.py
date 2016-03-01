@@ -22,6 +22,9 @@ from scipy.stats import entropy
 
 from gibbs_inner import gibbs_inner
 
+import pyublas
+import crunch
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(time)s : %(levelname)s : %(message)s',

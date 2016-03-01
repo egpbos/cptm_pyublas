@@ -1,7 +1,12 @@
+# cython: profile=True
+# cython: linetrace=True
 cimport cython
 
 cimport numpy as np
 import numpy as np
+
+import pyublas
+import crunch
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -22,6 +27,9 @@ def gibbs_inner(self):
     cdef np.ndarray[double, ndim=1, mode='c'] p
     p = np.empty(ndk.shape[1], dtype=np.double)
 
+    # rng = crunch.Sampler()
+    rng2 = crunch.Sampler2()
+
     for d, persp, d_p, doc in self.documents:
         for w_id, i in self.corpus.words_in_document(doc, 'topic'):
             topic = z[d, i]
@@ -30,8 +38,12 @@ def gibbs_inner(self):
             nkw[topic, w_id] -= 1
             nk[topic] -= 1
 
-            p = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, VT, p)
-            topic = self.sample_from(p)
+            # p = p_z(ndk[d], nkw[:, w_id], nk, alpha, beta, VT, p)
+            crunch.p_z(ndk, d, nkw, w_id, nk, alpha, beta, VT, p)
+            # topic = self.sample_from(p)
+            # topic = crunch.sample_from(p, rng)
+            # topic = crunch.sample_from2(p, rng)
+            topic = crunch.sample_from3(p, rng2)
 
             z[d, i] = topic
             ndk[d, topic] += 1
@@ -44,8 +56,12 @@ def gibbs_inner(self):
             nrs[persp, opinion, w_id] -= 1
             ns[persp, opinion] -= 1
 
-            p = p_x(nrs[persp, :, w_id], ns[persp], ndk[d], ntd[d], beta_o, VO, p)
-            opinion = self.sample_from(p)
+            # p = p_x(nrs[persp, :, w_id], ns[persp], ndk[d], ntd[d], beta_o, VO, p)
+            crunch.p_x(nrs, persp, w_id, ns, ndk, d, ntd, beta_o, VO, p)
+            # opinion = self.sample_from(p)
+            # opinion = crunch.sample_from(p, rng)
+            # opinion = crunch.sample_from2(p, rng)
+            opinion = crunch.sample_from3(p, rng2)
 
             x[persp, d_p, i] = opinion
             nrs[persp, opinion, w_id] += 1
