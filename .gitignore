@@ -5,6 +5,7 @@
 build/*
 gibbs_inner.*
 !gibbs_inner.pyx
+!gibbs_inner.cpp
 .ipynb_checkpoints
 *.so
 *.o
